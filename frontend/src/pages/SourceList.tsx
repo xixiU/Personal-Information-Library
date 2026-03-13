@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Modal, Form, Input, Select, message, Space } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
+import { Table, Button, Modal, Form, Input, Select, message, Space, Tag, Tooltip, Checkbox } from 'antd'
+import { SearchOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { sourcesApi, Source, CreateSourceRequest } from '../api/sources'
 import { pluginsApi, Plugin } from '../api/plugins'
+
+const CRON_PRESETS = [
+  { label: '每小时', value: '0 * * * *' },
+  { label: '每天早8点', value: '0 8 * * *' },
+  { label: '每天中午12点', value: '0 12 * * *' },
+  { label: '每天晚8点', value: '0 20 * * *' },
+  { label: '每周一早8点', value: '0 8 * * 1' },
+]
 
 export default function SourceList() {
   const [sources, setSources] = useState<Source[]>([])
@@ -66,15 +74,25 @@ export default function SourceList() {
         url: values.url,
         crawl_mode: values.crawl_mode || 'single_page',
         plugin_id: values.plugin_id || null,
+        cron_expr: values.cron_expr || null,
         config: configData
       }
 
+      let sourceId: number
       if (editingSource) {
         await sourcesApi.update(editingSource.id, payload)
         message.success('更新成功')
+        sourceId = editingSource.id
       } else {
-        await sourcesApi.create(payload)
+        const res = await sourcesApi.create(payload)
         message.success('创建成功')
+        sourceId = res.data.id
+      }
+
+      // 如果勾选了立即运行，触发采集
+      if (values.run_immediately) {
+        await sourcesApi.trigger(sourceId)
+        message.info('已触发采集任务')
       }
 
       setModalOpen(false)
@@ -97,7 +115,9 @@ export default function SourceList() {
       url: source.url,
       crawl_mode: source.crawl_mode,
       plugin_id: source.plugin_id || undefined,
-      config: source.config ? JSON.stringify(source.config, null, 2) : ''
+      cron_expr: source.cron_expr || '',
+      config: source.config ? JSON.stringify(source.config, null, 2) : '',
+      run_immediately: false
     })
     setModalOpen(true)
   }
@@ -131,11 +151,28 @@ export default function SourceList() {
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
-    { title: '爬取模式', dataIndex: 'crawl_mode', key: 'crawl_mode' },
+    { title: '爬取模式', dataIndex: 'crawl_mode', key: 'crawl_mode', width: 120 },
+    {
+      title: '定时采集',
+      dataIndex: 'cron_expr',
+      key: 'cron_expr',
+      width: 160,
+      render: (cron_expr: string | null) =>
+        cron_expr ? (
+          <Tooltip title={cron_expr}>
+            <Tag icon={<ClockCircleOutlined />} color="blue">
+              {CRON_PRESETS.find(p => p.value === cron_expr)?.label || cron_expr}
+            </Tag>
+          </Tooltip>
+        ) : (
+          <Tag color="default">未设置</Tag>
+        )
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 80,
       render: (status: string) => (status === 'active' ? '启用' : '禁用')
     },
     {
@@ -206,8 +243,27 @@ export default function SourceList() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="cron_expr" label="定时采集" extra="Cron 表达式，留空则不启用定时。格式：分 时 日 月 周">
+            <Input placeholder="0 8 * * * (每天早8点)" allowClear />
+          </Form.Item>
+          <Form.Item label="快速选择定时">
+            <Space wrap>
+              {CRON_PRESETS.map(p => (
+                <Button
+                  key={p.value}
+                  size="small"
+                  onClick={() => form.setFieldsValue({ cron_expr: p.value })}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </Space>
+          </Form.Item>
           <Form.Item name="config" label="配置（JSON，可选）">
             <Input.TextArea placeholder='{"max_depth": 3}' />
+          </Form.Item>
+          <Form.Item name="run_immediately" valuePropName="checked" initialValue={false}>
+            <Input type="checkbox" /> 保存后立即运行一次采集
           </Form.Item>
         </Form>
       </Modal>

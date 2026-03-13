@@ -54,6 +54,14 @@ def _seed_default_plugins():
                 domain_pattern=None,
                 enabled=True,
             ),
+            Plugin(
+                name="rss",
+                display_name="RSS 插件",
+                description="适用于 RSS 2.0 / Atom 订阅源，自动解析所有条目",
+                plugin_class="app.plugins.rss.RSSPlugin",
+                domain_pattern=None,
+                enabled=True,
+            ),
         ]
 
         for p in default_plugins:

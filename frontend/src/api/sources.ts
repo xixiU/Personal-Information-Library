@@ -29,6 +29,10 @@ export const sourcesApi = {
   update: (id: number, data: Partial<CreateSourceRequest>) =>
     client.put<Source>(`/sources/${id}`, data),
   delete: (id: number) => client.delete(`/sources/${id}`),
-  trigger: (id: number) => client.post(`/sources/${id}/trigger`)
+  trigger: (id: number) => client.post(`/sources/${id}/trigger`),
+  addSchedule: (id: number, cron_expr: string) =>
+    client.post(`/sources/${id}/schedule`, { cron_expr }),
+  removeSchedule: (id: number) => client.delete(`/sources/${id}/schedule`),
+  getSchedule: (id: number) => client.get(`/sources/${id}/schedule`),
 }
 

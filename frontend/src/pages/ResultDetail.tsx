@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, message, Tabs, Input, Space } from 'antd'
+import { Table, Card, message, Tabs, Input, Space, DatePicker } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { resultsApi, CrawlResult, RefinedResult } from '../api/results'
-import dayjs from 'dayjs'
+import dayjs, { Dayjs } from 'dayjs'
+
+const { RangePicker } = DatePicker
 
 export default function ResultDetail() {
   const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([])
@@ -12,6 +14,7 @@ export default function ResultDetail() {
   const [filteredRefinedResults, setFilteredRefinedResults] = useState<RefinedResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const sourceId = searchParams.get('source_id')
@@ -40,24 +43,47 @@ export default function ResultDetail() {
   }, [sourceId])
 
   useEffect(() => {
-    if (!searchText) {
+    if (!searchText && !dateRange) {
       setFilteredCrawlResults(crawlResults)
       setFilteredRefinedResults(refinedResults)
     } else {
-      const filteredCrawl = crawlResults.filter(
-        (r) =>
-          r.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-          r.content?.toLowerCase().includes(searchText.toLowerCase())
-      )
-      const filteredRefined = refinedResults.filter(
-        (r) =>
-          r.summary?.toLowerCase().includes(searchText.toLowerCase()) ||
-          r.keywords?.some((k) => k.toLowerCase().includes(searchText.toLowerCase()))
-      )
+      let filteredCrawl = crawlResults
+      let filteredRefined = refinedResults
+
+      // 文本搜索
+      if (searchText) {
+        filteredCrawl = filteredCrawl.filter(
+          (r) =>
+            r.title?.toLowerCase().includes(searchText.toLowerCase()) ||
+            r.content?.toLowerCase().includes(searchText.toLowerCase())
+        )
+        filteredRefined = filteredRefined.filter(
+          (r) =>
+            r.summary?.toLowerCase().includes(searchText.toLowerCase()) ||
+            r.keywords?.some((k) => k.toLowerCase().includes(searchText.toLowerCase()))
+        )
+      }
+
+      // 时间范围过滤
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        const startDate = dateRange[0].startOf('day')
+        const endDate = dateRange[1].endOf('day')
+
+        filteredCrawl = filteredCrawl.filter((r) => {
+          const resultDate = dayjs(r.created_at)
+          return resultDate.isAfter(startDate) && resultDate.isBefore(endDate)
+        })
+
+        filteredRefined = filteredRefined.filter((r) => {
+          const resultDate = dayjs(r.created_at)
+          return resultDate.isAfter(startDate) && resultDate.isBefore(endDate)
+        })
+      }
+
       setFilteredCrawlResults(filteredCrawl)
       setFilteredRefinedResults(filteredRefined)
     }
-  }, [searchText, crawlResults, refinedResults])
+  }, [searchText, dateRange, crawlResults, refinedResults])
 
   const crawlColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
@@ -109,6 +135,12 @@ export default function ResultDetail() {
           onChange={(e) => setSearchText(e.target.value)}
           prefix={<SearchOutlined />}
           allowClear
+        />
+        <RangePicker
+          value={dateRange}
+          onChange={setDateRange}
+          placeholder={['开始时间', '结束时间']}
+          style={{ width: 280 }}
         />
       </Space>
       <Tabs

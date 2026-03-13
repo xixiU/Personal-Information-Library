@@ -106,6 +106,12 @@ Personal-Information-Library/
 **测试**：50个测试用例，核心模块100%覆盖率
 **文档**：完整的架构、测试、产品文档
 
+## TODO
+
+- [ ] 分类管理：信源分组，差异化精炼策略
+- [ ] 通知管理：Webhook/Telegram 定时推送
+- [ ] 兴趣图谱：用户反馈驱动的个性化推荐
+- [ ] 详细设计见：[分类管理+通知管理+兴趣图谱设计方案](docs/plans/2026-03-13-category-notification-interest-design.md)
 
 ## 文档
 
@@ -114,7 +120,6 @@ Personal-Information-Library/
 - [产品需求文档](docs/PRD.md)
 - [项目总结](docs/project-summary.md)
 - [Tmux 使用指南](docs/tmux-guide.md)
-- [分类管理+通知管理+兴趣图谱设计方案](docs/plans/2026-03-13-category-notification-interest-design.md)
 
 ## License
 

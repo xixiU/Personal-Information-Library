@@ -2,7 +2,7 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -124,7 +124,11 @@ async def trigger_crawl(source_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{source_id}/schedule", status_code=200)
-async def add_schedule(source_id: int, cron_expr: str, db: Session = Depends(get_db)):
+async def add_schedule(
+    source_id: int,
+    cron_expr: str = Body(..., embed=True),
+    db: Session = Depends(get_db)
+):
     """添加或更新定时任务."""
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:

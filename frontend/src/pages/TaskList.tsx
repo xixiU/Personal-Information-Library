@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
-import { Table, Tag, message, Input, Select, Space, Button, Tooltip } from 'antd'
+import { Table, Tag, message, Input, Select, Space, Button, Tooltip, DatePicker } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { tasksApi, Task } from '../api/tasks'
-import dayjs from 'dayjs'
+import dayjs, { Dayjs } from 'dayjs'
+
+const { RangePicker } = DatePicker
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [sourceIdFilter, setSourceIdFilter] = useState<string>('')
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const navigate = useNavigate()
 
   const loadTasks = async () => {
@@ -20,7 +23,19 @@ export default function TaskList() {
       if (sourceIdFilter) params.source_id = Number(sourceIdFilter)
 
       const res = await tasksApi.list(params)
-      setTasks(res.data)
+      let filteredTasks = res.data
+
+      // 前端过滤时间范围
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        const startDate = dateRange[0].startOf('day')
+        const endDate = dateRange[1].endOf('day')
+        filteredTasks = filteredTasks.filter((task) => {
+          const taskDate = dayjs(task.created_at)
+          return taskDate.isAfter(startDate) && taskDate.isBefore(endDate)
+        })
+      }
+
+      setTasks(filteredTasks)
     } catch (error) {
       message.error('加载任务失败')
     } finally {
@@ -30,11 +45,12 @@ export default function TaskList() {
 
   useEffect(() => {
     loadTasks()
-  }, [statusFilter, sourceIdFilter])
+  }, [statusFilter, sourceIdFilter, dateRange])
 
   const handleReset = () => {
     setStatusFilter('')
     setSourceIdFilter('')
+    setDateRange(null)
   }
 
   const statusColors: Record<string, string> = {
@@ -119,6 +135,12 @@ export default function TaskList() {
           onChange={(e) => setSourceIdFilter(e.target.value)}
           prefix={<SearchOutlined />}
           allowClear
+        />
+        <RangePicker
+          value={dateRange}
+          onChange={setDateRange}
+          placeholder={['开始时间', '结束时间']}
+          style={{ width: 280 }}
         />
         <Button icon={<ReloadOutlined />} onClick={handleReset}>
           重置
