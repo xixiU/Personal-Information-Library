@@ -107,61 +107,14 @@ Personal-Information-Library/
 **文档**：完整的架构、测试、产品文档
 
 
-### Tmux 常用操作
-
-项目使用 tmux 进行多窗口开发，方便查看不同 agent 的工作进程。
-
-**基本操作**：
-```bash
-# 查看所有会话
-tmux ls
-
-# 连接到会话
-tmux attach -t <session-name>
-
-# 创建新会话
-tmux new -s <session-name>
-```
-
-**窗口操作**（在 tmux 会话中）：
-```bash
-Ctrl+b c        # 创建新窗口
-Ctrl+b n        # 切换到下一个窗口
-Ctrl+b p        # 切换到上一个窗口
-Ctrl+b 0-9      # 切换到指定编号的窗口
-Ctrl+b w        # 列出所有窗口
-Ctrl+b ,        # 重命名当前窗口
-Ctrl+b &        # 关闭当前窗口
-```
-
-**会话操作**：
-```bash
-Ctrl+b d        # 分离会话（后台运行）
-Ctrl+b s        # 列出所有会话
-Ctrl+b $        # 重命名会话
-```
-
-**面板操作**：
-```bash
-Ctrl+b %        # 垂直分割面板
-Ctrl+b "        # 水平分割面板
-Ctrl+b 方向键   # 切换面板
-Ctrl+b x        # 关闭当前面板
-```
-
-**其他**：
-```bash
-Ctrl+b ?        # 显示所有快捷键
-Ctrl+b [        # 进入复制模式（可滚动查看历史）
-q               # 退出复制模式
-```
-
 ## 文档
 
 - [技术架构设计](docs/architecture.md)
 - [测试计划](docs/test-plan.md)
 - [产品需求文档](docs/PRD.md)
 - [项目总结](docs/project-summary.md)
+- [Tmux 使用指南](docs/tmux-guide.md)
+- [分类管理+通知管理+兴趣图谱设计方案](docs/plans/2026-03-13-category-notification-interest-design.md)
 
 ## License
 
