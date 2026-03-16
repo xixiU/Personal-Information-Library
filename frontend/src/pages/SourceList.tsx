@@ -231,7 +231,7 @@ export default function SourceList() {
           <Form.Item name="crawl_mode" label="爬取模式" initialValue="single_page">
             <Select>
               <Select.Option value="single_page">单页爬取</Select.Option>
-              <Select.Option value="site_crawl">整站爬取</Select.Option>
+              <Select.Option value="full_site">整站爬取</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item name="plugin_id" label="爬取插件">

@@ -63,3 +63,11 @@ class CrawlerPlugin(ABC):
     def get_domain_pattern(self) -> Optional[str]:
         """Get domain pattern for matching."""
         return None
+
+    def supports_link_discovery(self) -> bool:
+        """是否支持链接发现（即是否应该走整站爬取逻辑）.
+
+        RSS 等聚合类插件返回 True，表示爬取入口页后需要继续爬取子链接。
+        普通单页插件返回 False。
+        """
+        return False

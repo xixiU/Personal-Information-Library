@@ -237,8 +237,8 @@ class CrawlerEngine:
 
             logger.info(f"Crawl result saved: {crawl_result.id}")
 
-            # 4. 如果是整站爬取，发现新链接并创建子任务
-            if source.crawl_mode == CrawlMode.FULL_SITE:
+            # 4. 如果是整站爬取，或插件本身支持链接发现（如 RSS），则发现新链接并创建子任务
+            if source.crawl_mode == CrawlMode.FULL_SITE or plugin.supports_link_discovery():
                 await self._handle_full_site_crawl(
                     task, source, plugin, html, url, db
                 )
