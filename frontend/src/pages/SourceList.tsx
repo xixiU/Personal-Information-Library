@@ -263,7 +263,7 @@ export default function SourceList() {
             <Input.TextArea placeholder='{"max_depth": 3}' />
           </Form.Item>
           <Form.Item name="run_immediately" valuePropName="checked" initialValue={false}>
-            <Input type="checkbox" /> 保存后立即运行一次采集
+            <Checkbox>保存后立即运行一次采集</Checkbox>
           </Form.Item>
         </Form>
       </Modal>
