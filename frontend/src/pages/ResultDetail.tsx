@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, message, Tabs, Input, Space, DatePicker } from 'antd'
+import { Table, Card, message, Tabs, Input, Space, DatePicker, Slider, Select } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { resultsApi, CrawlResult, RefinedResult } from '../api/results'
@@ -15,6 +15,9 @@ export default function ResultDetail() {
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+  const [scoreRange, setScoreRange] = useState<[number, number]>([0, 100])
+  const [orderBy, setOrderBy] = useState<string>('created_at')
+  const [order, setOrder] = useState<string>('desc')
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const sourceId = searchParams.get('source_id')
@@ -23,9 +26,16 @@ export default function ResultDetail() {
     setLoading(true)
     try {
       const params = sourceId ? { source_id: Number(sourceId) } : {}
+      const refinedParams = {
+        ...params,
+        min_score: scoreRange[0],
+        max_score: scoreRange[1],
+        order_by: orderBy,
+        order,
+      }
       const [crawlRes, refinedRes] = await Promise.all([
         resultsApi.listCrawl(params),
-        resultsApi.listRefined(params)
+        resultsApi.listRefined(refinedParams)
       ])
       setCrawlResults(crawlRes.data)
       setRefinedResults(refinedRes.data)
@@ -40,7 +50,7 @@ export default function ResultDetail() {
 
   useEffect(() => {
     loadResults()
-  }, [sourceId])
+  }, [sourceId, scoreRange, orderBy, order])
 
   useEffect(() => {
     if (!searchText && !dateRange) {
@@ -107,6 +117,15 @@ export default function ResultDetail() {
     }
   ]
 
+  // 清理多余空白：合并连续空行为单个空行，去除行首尾空格
+  const cleanContent = (content: string) =>
+    content
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
   const refinedColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true },
@@ -118,6 +137,13 @@ export default function ResultDetail() {
     },
     { title: '分类', dataIndex: 'category', key: 'category' },
     {
+      title: '质量评分',
+      dataIndex: 'quality_score',
+      key: 'quality_score',
+      width: 100,
+      render: (score: number | null) => score != null ? score : '-',
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -127,7 +153,7 @@ export default function ResultDetail() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Input
           placeholder="搜索标题、内容、关键词"
           style={{ width: 300 }}
@@ -141,6 +167,38 @@ export default function ResultDetail() {
           onChange={setDateRange}
           placeholder={['开始时间', '结束时间']}
           style={{ width: 280 }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ whiteSpace: 'nowrap' }}>质量分数筛选：</span>
+          <Slider
+            range
+            min={0}
+            max={100}
+            value={scoreRange}
+            onChange={(val) => setScoreRange(val as [number, number])}
+            style={{ width: 200 }}
+          />
+        </div>
+        <Select
+          value={orderBy === 'quality_score' ? `quality_score_${order}` : 'default'}
+          onChange={(val) => {
+            if (val === 'default') {
+              setOrderBy('created_at')
+              setOrder('desc')
+            } else if (val === 'quality_score_desc') {
+              setOrderBy('quality_score')
+              setOrder('desc')
+            } else {
+              setOrderBy('quality_score')
+              setOrder('asc')
+            }
+          }}
+          style={{ width: 160 }}
+          options={[
+            { label: '默认（时间）', value: 'default' },
+            { label: '质量分数↓', value: 'quality_score_desc' },
+            { label: '质量分数↑', value: 'quality_score_asc' },
+          ]}
         />
       </Space>
       <Tabs
@@ -157,8 +215,15 @@ export default function ResultDetail() {
                 expandable={{
                   expandedRowRender: (record) => (
                     <Card>
-                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {record.content || '无内容'}
+                      <pre style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        margin: 0,
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        lineHeight: '1.6'
+                      }}>
+                        {record.content ? cleanContent(record.content) : '无内容'}
                       </pre>
                     </Card>
                   )

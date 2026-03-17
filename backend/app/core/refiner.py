@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.result import CrawlResult, RefinedResult
 from app.models.task import Task
+from app.models.source import Source
+from app.models.category import Category
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,8 @@ class RefinerEngine:
 {{
   "summary": "摘要内容（200字以内）",
   "keywords": ["关键词1", "关键词2", ...],
-  "category": "文章分类（如：技术、新闻、教程等）"
+  "category": "文章分类（如：技术、新闻、教程等）",
+  "quality_score": 0-100的整数，根据内容质量、信息密度、可读性综合评分
 }}""",
         },
     }
@@ -61,6 +64,7 @@ class RefinerEngine:
         crawl_result: CrawlResult,
         template_name: str = "summary_keywords",
         custom_prompt: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Optional[RefinedResult]:
         """
         执行精炼任务.
@@ -69,6 +73,7 @@ class RefinerEngine:
             crawl_result: 爬取结果
             template_name: 模板名称
             custom_prompt: 自定义提示词（覆盖模板）
+            db: 数据库会话（用于查询分类 prompt）
 
         Returns:
             精炼结果对象，失败返回None
@@ -79,7 +84,10 @@ class RefinerEngine:
                 logger.warning(f"Content too short for crawl result {crawl_result.id}")
                 return None
 
-            # 构建提示词
+            # 尝试从分类获取自定义 prompt
+            category_prompt = self._get_category_prompt(crawl_result, db)
+
+            # 构建提示词（优先级：custom_prompt > 分类 prompt > 模板）
             if custom_prompt:
                 messages = [
                     {"role": "system", "content": "你是一个专业的内容分析助手。"},
@@ -88,6 +96,15 @@ class RefinerEngine:
                         content=self._truncate_content(crawl_result.content),
                     )},
                 ]
+            elif category_prompt:
+                messages = [
+                    {"role": "system", "content": category_prompt["system"]},
+                    {"role": "user", "content": category_prompt["user"].format(
+                        title=crawl_result.title or "无标题",
+                        content=self._truncate_content(crawl_result.content),
+                    )},
+                ]
+                template_name = "category_custom"
             else:
                 template = self.TEMPLATES.get(template_name)
                 if not template:
@@ -114,12 +131,22 @@ class RefinerEngine:
             # 解析响应
             refined_data = self._parse_response(response_text, template_name)
 
+            # 校验 quality_score
+            qs = refined_data.get("quality_score")
+            if qs is not None:
+                try:
+                    qs = int(qs)
+                    refined_data["quality_score"] = max(0, min(100, qs))
+                except (ValueError, TypeError):
+                    refined_data["quality_score"] = None
+
             # 创建精炼结果
             refined_result = RefinedResult(
                 crawl_result_id=crawl_result.id,
                 summary=refined_data.get("summary"),
                 keywords=refined_data.get("keywords"),
                 category=refined_data.get("category"),
+                quality_score=refined_data.get("quality_score"),
                 meta_data={
                     "template": template_name,
                     "model": self.model,
@@ -134,6 +161,58 @@ class RefinerEngine:
         except Exception as e:
             logger.error(f"Failed to refine crawl result {crawl_result.id}: {e}", exc_info=True)
             return None
+
+    def _get_category_prompt(
+        self, crawl_result: CrawlResult, db: Optional[Session]
+    ) -> Optional[Dict[str, str]]:
+        """从 crawl_result 关联的 source 的分类中获取自定义 prompt."""
+        if not db:
+            return None
+
+        try:
+            # 通过 crawl_result -> task -> source -> category 链路查询
+            task = db.query(Task).filter(Task.id == crawl_result.task_id).first()
+            if not task or not task.source_id:
+                return None
+
+            source = db.query(Source).filter(Source.id == task.source_id).first()
+            if not source or not source.category_id:
+                return None
+
+            category = db.query(Category).filter(Category.id == source.category_id).first()
+            if not category:
+                return None
+
+            if category.refine_prompt_system:
+                # 构造包含质量评分要求的用户提示词
+                quality_instruction = ""
+                if category.quality_criteria:
+                    quality_instruction = f"\n\n质量评分标准：\n{category.quality_criteria}\n"
+
+                user_prompt = """请分析以下内容：
+
+标题：{{title}}
+
+内容：
+{{content}}
+{quality_instruction}
+请以JSON格式返回：
+{{{{
+  "summary": "摘要内容（200字以内）",
+  "keywords": ["关键词1", "关键词2", ...],
+  "category": "文章分类",
+  "quality_score": 0-100的整数，根据上述标准评分
+}}}}""".format(quality_instruction=quality_instruction)
+
+                logger.info(f"Using category '{category.name}' prompt for crawl result {crawl_result.id}")
+                return {
+                    "system": category.refine_prompt_system,
+                    "user": user_prompt,
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get category prompt: {e}")
+
+        return None
 
     async def _call_openai_with_retry(self, messages: list) -> Optional[str]:
         """
@@ -199,7 +278,7 @@ class RefinerEngine:
 
         try:
             # 尝试解析JSON
-            if template_name in ["keywords", "summary_keywords"]:
+            if template_name in ["keywords", "summary_keywords", "category_custom"]:
                 import json
                 import re
 

@@ -2,7 +2,8 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 
@@ -33,6 +34,9 @@ class Source(Base):
     cron_expr = Column(String(100), nullable=True)  # Cron expression for scheduling
     plugin_id = Column(Integer, nullable=True)  # Foreign key to plugins table
     config = Column(JSON, nullable=True)  # Additional configuration
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     status = Column(String(20), nullable=False, default=SourceStatus.ACTIVE)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    category = relationship("Category", lazy="joined")

@@ -14,6 +14,7 @@ class SourceBase(BaseModel):
     cron_expr: Optional[str] = None
     plugin_id: Optional[int] = None
     config: Optional[dict] = None
+    category_id: Optional[int] = None
     status: str = Field(default="active")
 
 
@@ -32,6 +33,7 @@ class SourceUpdate(BaseModel):
     cron_expr: Optional[str] = None
     plugin_id: Optional[int] = None
     config: Optional[dict] = None
+    category_id: Optional[int] = None
     status: Optional[str] = None
 
 

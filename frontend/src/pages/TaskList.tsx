@@ -7,7 +7,11 @@ import dayjs, { Dayjs } from 'dayjs'
 
 const { RangePicker } = DatePicker
 
-export default function TaskList() {
+interface Props {
+  type: 'crawl' | 'refine'
+}
+
+export default function TaskList({ type }: Props) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -18,14 +22,13 @@ export default function TaskList() {
   const loadTasks = async () => {
     setLoading(true)
     try {
-      const params: any = {}
+      const params: any = { type }
       if (statusFilter) params.status = statusFilter
       if (sourceIdFilter) params.source_id = Number(sourceIdFilter)
 
       const res = await tasksApi.list(params)
       let filteredTasks = res.data
 
-      // 前端过滤时间范围
       if (dateRange && dateRange[0] && dateRange[1]) {
         const startDate = dateRange[0].startOf('day')
         const endDate = dateRange[1].endOf('day')
@@ -45,7 +48,7 @@ export default function TaskList() {
 
   useEffect(() => {
     loadTasks()
-  }, [statusFilter, sourceIdFilter, dateRange])
+  }, [type, statusFilter, sourceIdFilter, dateRange])
 
   const handleReset = () => {
     setStatusFilter('')
@@ -61,17 +64,24 @@ export default function TaskList() {
     timeout: 'warning'
   }
 
+  const statusLabels: Record<string, string> = {
+    pending: '待执行',
+    running: '执行中',
+    success: '成功',
+    failed: '失败',
+    timeout: '超时'
+  }
+
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '类型', dataIndex: 'type', key: 'type', width: 100 },
     { title: '信源ID', dataIndex: 'source_id', key: 'source_id', width: 100 },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 100,
       render: (status: string) => (
-        <Tag color={statusColors[status]}>{status}</Tag>
+        <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
       )
     },
     {
@@ -95,12 +105,11 @@ export default function TaskList() {
         ) : '-'
     },
     {
-      title: '开始时间',
-      dataIndex: 'started_at',
-      key: 'started_at',
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
       width: 180,
-      render: (time: string | null) =>
-        time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
+      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
     },
     {
       title: '完成时间',
@@ -122,11 +131,11 @@ export default function TaskList() {
           onChange={setStatusFilter}
           allowClear
         >
-          <Select.Option value="pending">pending</Select.Option>
-          <Select.Option value="running">running</Select.Option>
-          <Select.Option value="success">success</Select.Option>
-          <Select.Option value="failed">failed</Select.Option>
-          <Select.Option value="timeout">timeout</Select.Option>
+          <Select.Option value="pending">待执行</Select.Option>
+          <Select.Option value="running">执行中</Select.Option>
+          <Select.Option value="success">成功</Select.Option>
+          <Select.Option value="failed">失败</Select.Option>
+          <Select.Option value="timeout">超时</Select.Option>
         </Select>
         <Input
           placeholder="信源ID"
@@ -142,12 +151,8 @@ export default function TaskList() {
           placeholder={['开始时间', '结束时间']}
           style={{ width: 280 }}
         />
-        <Button icon={<ReloadOutlined />} onClick={handleReset}>
-          重置
-        </Button>
-        <Button type="primary" icon={<ReloadOutlined />} onClick={loadTasks}>
-          刷新
-        </Button>
+        <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+        <Button type="primary" icon={<ReloadOutlined />} onClick={loadTasks}>刷新</Button>
       </Space>
       <Table
         columns={columns}

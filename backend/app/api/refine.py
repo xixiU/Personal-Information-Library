@@ -111,7 +111,7 @@ async def preview_refine(
 
     # 执行精炼（不保存）
     refiner = RefinerEngine()
-    refined_result = await refiner.refine(crawl_result, template_name=template)
+    refined_result = await refiner.refine(crawl_result, template_name=template, db=db)
 
     if not refined_result:
         raise HTTPException(status_code=500, detail="Refine failed")

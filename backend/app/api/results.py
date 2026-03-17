@@ -1,8 +1,8 @@
 """Result API - 结果查询接口."""
 import logging
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -44,12 +44,26 @@ async def get_crawl_result(result_id: int, db: Session = Depends(get_db)):
 async def list_refined_results(
     skip: int = 0,
     limit: int = 100,
+    min_score: Optional[int] = Query(None, ge=0, le=100),
+    max_score: Optional[int] = Query(None, ge=0, le=100),
+    order_by: Optional[str] = Query(None, pattern="^(quality_score|created_at)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
     """获取精炼结果列表."""
+    query = db.query(RefinedResult)
+
+    if min_score is not None:
+        query = query.filter(RefinedResult.quality_score >= min_score)
+    if max_score is not None:
+        query = query.filter(RefinedResult.quality_score <= max_score)
+
+    # 排序
+    sort_column = RefinedResult.created_at
+    if order_by == "quality_score":
+        sort_column = RefinedResult.quality_score
     results = (
-        db.query(RefinedResult)
-        .order_by(RefinedResult.created_at.desc())
+        query.order_by(sort_column.asc() if order == "asc" else sort_column.desc())
         .offset(skip)
         .limit(limit)
         .all()

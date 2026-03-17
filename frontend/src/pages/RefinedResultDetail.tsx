@@ -84,6 +84,9 @@ export default function RefinedResultDetail() {
               '-'
             )}
           </Descriptions.Item>
+          <Descriptions.Item label="质量评分">
+            {refined.quality_score != null ? refined.quality_score : '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {dayjs(refined.created_at).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>

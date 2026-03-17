@@ -31,5 +31,6 @@ class RefinedResult(Base):
     summary = Column(Text, nullable=True)
     keywords = Column(JSON, nullable=True)  # List of keywords
     category = Column(String(100), nullable=True)
+    quality_score = Column(Integer, nullable=True)  # 质量评分 0-100
     meta_data = Column(JSON, nullable=True)  # Additional refined data
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

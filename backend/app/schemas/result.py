@@ -29,6 +29,7 @@ class RefinedResultResponse(BaseModel):
     summary: Optional[str] = None
     keywords: Optional[list] = None
     category: Optional[str] = None
+    quality_score: Optional[int] = None
     meta_data: Optional[dict] = None
     created_at: datetime
 

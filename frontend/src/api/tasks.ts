@@ -17,7 +17,7 @@ export interface Task {
 }
 
 export const tasksApi = {
-  list: (params?: { status?: string; source_id?: number }) =>
+  list: (params?: { status?: string; type?: string; source_id?: number }) =>
     client.get<Task[]>('/tasks', { params }),
   get: (id: number) => client.get<Task>(`/tasks/${id}`),
   cancel: (id: number) => client.post(`/tasks/${id}/cancel`),

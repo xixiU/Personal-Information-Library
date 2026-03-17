@@ -226,12 +226,13 @@ class TaskScheduler:
                 logger.info(f"Refined result already exists for crawl result {crawl_result.id}")
                 return
 
-            # 创建精炼任务
+            # 创建精炼任务，url 字段存储关联的爬取 URL 方便展示
             refine_task = Task(
                 type=TaskType.REFINE,
                 status=TaskStatus.PENDING,
                 priority=3,  # 精炼任务优先级较低
                 source_id=source_id,
+                url=crawl_result.url,
                 payload={"crawl_result_id": crawl_result.id},
                 created_at=datetime.utcnow(),
             )
@@ -280,7 +281,7 @@ class TaskScheduler:
 
             # 调用精炼引擎
             template_name = task.payload.get("template", "summary_keywords") if task.payload else "summary_keywords"
-            refined_result = await self.refiner_engine.refine(crawl_result, template_name=template_name)
+            refined_result = await self.refiner_engine.refine(crawl_result, template_name=template_name, db=db)
 
             if refined_result:
                 # 保存精炼结果

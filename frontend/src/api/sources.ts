@@ -7,6 +7,7 @@ export interface Source {
   crawl_mode: string
   cron_expr: string | null
   plugin_id: number | null
+  category_id: number | null
   config: Record<string, any> | null
   status: string
   created_at: string
@@ -19,6 +20,7 @@ export interface CreateSourceRequest {
   crawl_mode: string
   cron_expr?: string | null
   plugin_id?: number | null
+  category_id?: number | null
   config?: Record<string, any> | null
 }
 

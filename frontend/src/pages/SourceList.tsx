@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Input, Select, message, Space, Tag, Tooltip
 import { SearchOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { sourcesApi, Source, CreateSourceRequest } from '../api/sources'
 import { pluginsApi, Plugin } from '../api/plugins'
+import { categoriesApi, Category } from '../api/categories'
 
 const CRON_PRESETS = [
   { label: '每小时', value: '0 * * * *' },
@@ -16,6 +17,7 @@ export default function SourceList() {
   const [sources, setSources] = useState<Source[]>([])
   const [filteredSources, setFilteredSources] = useState<Source[]>([])
   const [plugins, setPlugins] = useState<Plugin[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<Source | null>(null)
@@ -44,9 +46,19 @@ export default function SourceList() {
     }
   }
 
+  const loadCategories = async () => {
+    try {
+      const res = await categoriesApi.list()
+      setCategories(res.data)
+    } catch (error) {
+      // 分类加载失败不影响主流程
+    }
+  }
+
   useEffect(() => {
     loadSources()
     loadPlugins()
+    loadCategories()
   }, [])
 
   useEffect(() => {
@@ -75,7 +87,8 @@ export default function SourceList() {
         crawl_mode: values.crawl_mode || 'single_page',
         plugin_id: values.plugin_id || null,
         cron_expr: values.cron_expr || null,
-        config: configData
+        config: configData,
+        category_id: values.category_id || null
       }
 
       let sourceId: number
@@ -117,6 +130,7 @@ export default function SourceList() {
       plugin_id: source.plugin_id || undefined,
       cron_expr: source.cron_expr || '',
       config: source.config ? JSON.stringify(source.config, null, 2) : '',
+      category_id: source.category_id || undefined,
       run_immediately: false
     })
     setModalOpen(true)
@@ -152,6 +166,17 @@ export default function SourceList() {
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
     { title: '爬取模式', dataIndex: 'crawl_mode', key: 'crawl_mode', width: 120 },
+    {
+      title: '分类',
+      dataIndex: 'category_id',
+      key: 'category_id',
+      width: 120,
+      render: (category_id: number | null) => {
+        if (!category_id) return <Tag color="default">未分类</Tag>
+        const cat = categories.find(c => c.id === category_id)
+        return cat ? <Tag color={cat.color}>{cat.name}</Tag> : <Tag color="default">未分类</Tag>
+      }
+    },
     {
       title: '定时采集',
       dataIndex: 'cron_expr',
@@ -239,6 +264,15 @@ export default function SourceList() {
               {plugins.map(p => (
                 <Select.Option key={p.id} value={p.id}>
                   {p.display_name || p.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="category_id" label="分类">
+            <Select placeholder="选择分类（可选）" allowClear>
+              {categories.map(c => (
+                <Select.Option key={c.id} value={c.id}>
+                  <Tag color={c.color} style={{ marginRight: 4 }}>{c.name}</Tag>
                 </Select.Option>
               ))}
             </Select>

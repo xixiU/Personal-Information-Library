@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.core.scheduler import get_scheduler
-from app.api import sources, tasks, results, refine, plugins
+from app.api import sources, tasks, results, refine, plugins, categories
 
 # 配置日志
 logging.basicConfig(
@@ -55,6 +55,7 @@ app.add_middleware(
 )
 
 # 注册路由
+app.include_router(categories.router)
 app.include_router(sources.router)
 app.include_router(tasks.router)
 app.include_router(results.router)
@@ -79,6 +80,13 @@ async def health():
 
 
 if __name__ == "__main__":
+    import sys
+    import os
     import uvicorn
+
+    # 将 backend/ 目录加入 sys.path，使 `python app/main.py` 可以直接运行
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, backend_dir)
+    os.chdir(backend_dir)
 
     uvicorn.run(app, host="0.0.0.0", port=8000)

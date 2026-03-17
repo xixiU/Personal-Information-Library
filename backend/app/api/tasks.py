@@ -37,6 +37,7 @@ async def list_tasks(
     skip: int = 0,
     limit: int = 100,
     status: str = None,
+    type: str = None,
     source_id: int = None,
     db: Session = Depends(get_db),
 ):
@@ -45,6 +46,8 @@ async def list_tasks(
 
     if status:
         query = query.filter(Task.status == status)
+    if type:
+        query = query.filter(Task.type == type)
     if source_id:
         query = query.filter(Task.source_id == source_id)
 
