@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Layout, Menu } from 'antd'
 import { useState } from 'react'
-import { DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined } from '@ant-design/icons'
+import { DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons'
 import SourceList from './pages/SourceList'
 import TaskList from './pages/TaskList'
 import ResultDetail from './pages/ResultDetail'
 import RefinedResultDetail from './pages/RefinedResultDetail'
 import CategoryList from './pages/CategoryList'
+import NotificationChannels from './pages/NotificationChannels'
 
 const { Sider, Content } = Layout
 
@@ -54,6 +55,18 @@ function AppContent() {
       icon: <FileTextOutlined />,
       label: <Link to="/results">采集结果</Link>,
     },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: '系统设置',
+      children: [
+        {
+          key: 'notification-channels',
+          icon: <BellOutlined />,
+          label: <Link to="/notification-channels">通知渠道</Link>,
+        },
+      ],
+    },
   ]
 
   const getSelectedKeys = () => {
@@ -63,6 +76,7 @@ function AppContent() {
     if (path === '/tasks/refine') return ['refine-tasks']
     if (path === '/categories') return ['categories']
     if (path === '/results') return ['results']
+    if (path === '/notification-channels') return ['notification-channels']
     return []
   }
 
@@ -70,6 +84,7 @@ function AppContent() {
     const path = location.pathname
     if (path === '/' || path === '/categories') return ['sources-parent']
     if (path.startsWith('/tasks')) return ['tasks']
+    if (path === '/notification-channels') return ['settings']
     return []
   }
 
@@ -112,6 +127,7 @@ function AppContent() {
             <Route path="/categories" element={<CategoryList />} />
             <Route path="/results" element={<ResultDetail />} />
             <Route path="/refined/:id" element={<RefinedResultDetail />} />
+            <Route path="/notification-channels" element={<NotificationChannels />} />
           </Routes>
         </Content>
       </Layout>

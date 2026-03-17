@@ -110,13 +110,13 @@ Personal-Information-Library/
 
 ## 功能展示
 
-### 信源管理菜单
-
-![信源管理菜单](docs/image1.png)
-
 ### 分类管理页面
 
-![分类管理页面](docs/image2..png)
+![分类管理页面](docs/image1.png)
+
+### 信源管理页面
+
+![信源管理页面](docs/image2.png)
 
 ### 分类编辑表单
 

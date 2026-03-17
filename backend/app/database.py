@@ -30,7 +30,7 @@ def get_db():
 def init_db():
     """Initialize database tables."""
     # 导入所有模型确保表被创建
-    from app.models import source, task, result, plugin, task_log, category  # noqa
+    from app.models import source, task, result, plugin, task_log, category, notification  # noqa
     Base.metadata.create_all(bind=engine)
     _seed_default_plugins()
 

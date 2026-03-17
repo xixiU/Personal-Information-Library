@@ -156,6 +156,18 @@ class RefinerEngine:
             )
 
             logger.info(f"Refined result created for crawl result {crawl_result.id}")
+
+            # 触发通知评估（异步，不阻塞主流程）
+            if db:
+                try:
+                    from app.core.notifier import NotificationEngine
+                    from app.core.scheduler import get_scheduler
+                    scheduler = get_scheduler()
+                    engine = NotificationEngine(scheduler=scheduler.apscheduler)
+                    await engine.evaluate(refined_result, db)
+                except Exception as e:
+                    logger.warning(f"通知评估失败: {e}")
+
             return refined_result
 
         except Exception as e:

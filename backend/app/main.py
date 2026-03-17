@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import init_db
 from app.core.scheduler import get_scheduler
 from app.api import sources, tasks, results, refine, plugins, categories
+from app.api import notification_channels, notification_rules
 
 # 配置日志
 logging.basicConfig(
@@ -61,6 +62,8 @@ app.include_router(tasks.router)
 app.include_router(results.router)
 app.include_router(refine.router)
 app.include_router(plugins.router)
+app.include_router(notification_channels.router)
+app.include_router(notification_rules.router)
 
 
 @app.get("/")

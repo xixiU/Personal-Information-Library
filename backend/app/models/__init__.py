@@ -5,6 +5,7 @@ from app.models.task import Task, TaskType, TaskStatus
 from app.models.result import CrawlResult, RefinedResult
 from app.models.plugin import Plugin
 from app.models.task_log import TaskLog, LogLevel
+from app.models.notification import NotificationChannel, NotificationRule, NotificationLog
 
 __all__ = [
     "Category",
@@ -19,4 +20,7 @@ __all__ = [
     "Plugin",
     "TaskLog",
     "LogLevel",
+    "NotificationChannel",
+    "NotificationRule",
+    "NotificationLog",
 ]
