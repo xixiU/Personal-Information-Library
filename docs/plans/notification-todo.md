@@ -32,3 +32,14 @@
 | Bark (iOS) | HTTP GET | `https://api.day.app/{key}/{title}/{body}` |
 | 邮件 (SMTP) | `aiosmtplib` | 需配置 SMTP 服务器 |
 | 定时摘要 | cron 汇总 | 按周期汇总发送，非实时触发 |
+
+## 技术风险与注意事项
+| 风险 | 应对策略 |
+|------|---------|
+| Token/密钥泄露 | config 中 bot_token、secret 等字段 API 返回时脱敏（替换为 `***`），仅创建/更新时接收明文 |
+| 通知发送失败 | 异步执行 + 重试 3 次（指数退避），失败写入 NotificationLog，不阻塞精炼主流程 |
+| 批量精炼通知轰炸 | 聚合模式 batch_window + batch_max_count 双重控制 |
+| Telegram API 限流 | Bot API 限制 30msg/s per chat，通过 NotificationEngine 内部队列控制发送速率 |
+| 聚合窗口内服务重启 | pending 状态的 NotificationLog 在服务启动时检查，超过 batch_window 的自动触发发送 |
+| 模板变量注入 | 变量替换时对 Markdown/HTML 特殊字符转义 |
+| 渠道删除数据一致性 | 删除前检查关联规则，有关联则拒绝删除 |
