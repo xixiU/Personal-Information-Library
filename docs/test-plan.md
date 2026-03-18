@@ -213,42 +213,56 @@ const mockOpenAIResponse = {
 | PLG-U03 | 插件生命周期（init→execute→destroy） | P0 |
 | PLG-U04 | 插件配置验证 | P1 |
 | PLG-U05 | 插件间依赖解析 | P2 |
-| PLG-U06 | 插件热加载/卸载 | P2 |
-| PLG-U07 | 插件沙箱隔离 | P1 |
 
 #### 插件测试框架设计
 
 ```
 插件测试方案：
 ├── 插件契约测试
-│   ├── 定义插件接口规范（TypeScript Interface / JSON Schema）
-│   ├── 自动验证插件是否实现所有必要方法
+│   ├── 验证插件是否实现所有必要方法（fetch/parse/supports_link_discovery）
 │   └── 验证插件输入输出格式
-├── 插件集成测试
-│   ├── 测试插件与爬虫引擎的集成
-│   ├── 测试插件与调度系统的集成
-│   └── 测试多插件协作场景
-├── 插件安全测试
-│   ├── 插件不能访问宿主文件系统（沙箱）
-│   ├── 插件不能修改全局状态
-│   ├── 插件资源使用限制（CPU/内存/网络）
-│   └── 恶意插件检测
-└── 示例插件测试
-    ├── 提供标准测试插件作为参考实现
-    └── 插件开发者测试工具包（SDK）
+└── 插件集成测试
+    ├── 测试插件与爬虫引擎的集成
+    └── 测试多插件协作场景（GenericPlugin / RSSPlugin）
 ```
 
 #### 边界条件
 
 - 插件执行超时
 - 插件抛出未捕获异常
-- 插件内存泄漏检测
 - 同名插件冲突
-- 插件版本不兼容
 
 ---
 
-### 2.6 Web用户界面
+### 2.6 通知模块
+
+#### 单元测试
+
+| 编号 | 测试场景 | 输入 | 预期输出 | 优先级 |
+|------|----------|------|----------|--------|
+| NTF-U01 | FeishuNotifier 构建消息卡片 | 标题+正文文本 | 合法的 interactive payload | P0 |
+| NTF-U02 | FeishuNotifier 纯文本降级 | use_card=False | msg_type=text payload | P0 |
+| NTF-U03 | WebhookNotifier 发送成功 | 有效 URL + 消息 | 返回 True | P0 |
+| NTF-U04 | TelegramNotifier 发送成功 | 有效 bot_token + chat_id | 返回 True | P0 |
+| NTF-U05 | 规则评估 - 质量阈值 | quality_score=85, threshold=80 | 触发通知 | P0 |
+| NTF-U06 | 规则评估 - 质量阈值不满足 | quality_score=60, threshold=80 | 不触发 | P0 |
+| NTF-U07 | 规则评估 - 关键词匹配 | keywords 包含规则关键词 | 触发通知 | P1 |
+| NTF-U08 | 通知去重 | 同一 result+rule 已有 success 日志 | 不重复发送 | P0 |
+| NTF-U09 | 发送失败重试 | 前两次失败，第三次成功 | 最终返回 True | P1 |
+| NTF-U10 | 渠道配置校验 | 缺少 webhook_url | validate_config 返回 False | P1 |
+
+#### 集成测试（Mock HTTP）
+
+| 编号 | 测试场景 | 验证点 |
+|------|----------|--------|
+| NTF-I01 | 精炼完成触发即时通知 | refine 完成 → evaluate() → 发送 → NotificationLog 写入 |
+| NTF-I02 | 聚合模式批量发送 | 多条结果进入 pending → batch_window 到期 → 合并发送 |
+| NTF-I03 | 飞书 code 字段校验 | HTTP 200 但 code≠0 → 判定失败 → 重试 |
+| NTF-I04 | 通知不阻塞精炼 | 通知发送异常 → 精炼结果仍正常写入 |
+
+---
+
+### 2.7 Web用户界面
 
 #### 单元测试（组件测试）
 
@@ -260,6 +274,8 @@ const mockOpenAIResponse = {
 | UI-U04 | 任务状态展示 | P1 |
 | UI-U05 | 分页组件 | P1 |
 | UI-U06 | 错误状态展示 | P1 |
+| UI-U07 | 通知渠道表单 - 飞书消息格式切换 | P1 |
+| UI-U08 | 分类编辑 - 通知规则 Tab 渲染 | P1 |
 
 #### 端到端测试
 
@@ -269,8 +285,9 @@ const mockOpenAIResponse = {
 | E2E-02 | 添加整站爬取任务 | 打开首页→填写URL→选择整站→配置深度→提交→监控进度 | P0 |
 | E2E-03 | 查看精炼结果 | 打开信源详情→查看原始内容→查看AI精炼结果 | P0 |
 | E2E-04 | 搜索信源 | 输入关键词→查看搜索结果→点击详情 | P1 |
-| E2E-05 | 管理插件 | 打开插件页→安装插件→配置→启用/禁用 | P1 |
-| E2E-06 | 任务批量操作 | 选择多个任务→批量暂停/删除/重试 | P2 |
+| E2E-05 | 分类管理 | 创建分类→配置精炼提示词和质量标准→绑定信源 | P1 |
+| E2E-06 | 通知渠道配置 | 新建飞书渠道→选择消息卡片格式→发送测试消息 | P1 |
+| E2E-07 | 通知规则配置 | 进入分类→添加通知规则→绑定渠道→设置质量阈值 | P1 |
 
 ---
 
@@ -338,50 +355,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npm run test:unit -- --coverage
-      - uses: codecov/codecov-action@v4
+      - name: 后端单元测试
+        run: |
+          cd backend
+          uv pip install -e ".[dev]"
+          pytest tests/ -v --cov=app
+      - name: 前端单元测试
+        run: |
+          cd frontend
+          pnpm install
+          pnpm test --run
 
   integration-test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-      redis:
-        image: redis:7
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npm run test:integration
+      - name: 后端集成测试（SQLite，无外部依赖）
+        run: |
+          cd backend
+          uv pip install -e ".[dev]"
+          pytest tests/integration/ -v
 
   e2e-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci
       - run: npx playwright install
-      - run: npm run test:e2e
+      - run: pnpm test:e2e
 
   security-scan:
     runs-on: ubuntu-latest
     steps:
-      - run: npm audit --audit-level=high
-      - run: npx snyk test
+      - run: cd frontend && pnpm audit --audit-level=high
 ```
 
 ### 5.2 测试命令规范
 
-```json
-{
-  "scripts": {
-    "test": "vitest run",
-    "test:unit": "vitest run --project unit",
-    "test:integration": "vitest run --project integration",
-    "test:e2e": "playwright test",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest watch"
-  }
-}
+```bash
+# 后端
+cd backend
+pytest tests/ -v                    # 全量
+pytest tests/unit/ -v               # 单元
+pytest tests/integration/ -v        # 集成
+
+# 前端
+cd frontend
+pnpm test --run                     # 单次运行（非 watch）
+pnpm test:e2e                       # E2E
 ```
 
 ### 5.3 测试数据管理
@@ -446,12 +466,12 @@ Release → 性能测试 + 安全扫描
 
 | 环境 | 用途 | 配置 |
 |------|------|------|
-| 本地开发 | 单元测试 + 部分集成测试 | SQLite + Mock服务 |
-| CI环境 | 全量自动化测试 | PostgreSQL + Redis + Mock HTTP |
-| Staging | E2E测试 + 性能测试 | 与生产环境一致 |
+| 本地开发 | 单元测试 + 集成测试 | SQLite（内存/文件）+ Mock HTTP |
+| CI 环境 | 全量自动化测试 | SQLite + Mock HTTP（无外部服务依赖） |
+
+> 项目使用 SQLite，无需 PostgreSQL/Redis，CI 环境零外部依赖。
 
 ---
 
-*文档版本: v1.0*
-*创建日期: 2026-03-13*
-*负责人: 测试团队*
+*文档版本: v2.0*
+*更新日期: 2026-03-17*
