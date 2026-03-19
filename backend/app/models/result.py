@@ -1,7 +1,7 @@
 """Result models - 爬取结果和精炼结果."""
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
 from app.database import Base
 
 
@@ -32,5 +32,6 @@ class RefinedResult(Base):
     keywords = Column(JSON, nullable=True)  # List of keywords
     category = Column(String(100), nullable=True)
     quality_score = Column(Integer, nullable=True)  # 质量评分 0-100
+    interest_score = Column(Float, nullable=True, index=True)  # 兴趣匹配分 0.0~1.0
     meta_data = Column(JSON, nullable=True)  # Additional refined data
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

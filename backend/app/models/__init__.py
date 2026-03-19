@@ -6,6 +6,7 @@ from app.models.result import CrawlResult, RefinedResult
 from app.models.plugin import Plugin
 from app.models.task_log import TaskLog, LogLevel
 from app.models.notification import NotificationChannel, NotificationRule, NotificationLog
+from app.models.interest import UserFeedback, InterestPoint
 
 __all__ = [
     "Category",
@@ -23,4 +24,6 @@ __all__ = [
     "NotificationChannel",
     "NotificationRule",
     "NotificationLog",
+    "UserFeedback",
+    "InterestPoint",
 ]

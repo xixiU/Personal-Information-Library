@@ -1,13 +1,14 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Layout, Menu } from 'antd'
 import { useState } from 'react'
-import { DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons'
+import { DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined, SettingOutlined, BellOutlined, StarOutlined } from '@ant-design/icons'
 import SourceList from './pages/SourceList'
 import TaskList from './pages/TaskList'
 import ResultDetail from './pages/ResultDetail'
 import RefinedResultDetail from './pages/RefinedResultDetail'
 import CategoryList from './pages/CategoryList'
 import NotificationChannels from './pages/NotificationChannels'
+import InterestPoints from './pages/InterestPoints'
 
 const { Sider, Content } = Layout
 
@@ -56,6 +57,11 @@ function AppContent() {
       label: <Link to="/results">采集结果</Link>,
     },
     {
+      key: 'interest-points',
+      icon: <StarOutlined />,
+      label: <Link to="/interest-points">兴趣图谱</Link>,
+    },
+    {
       key: 'settings',
       icon: <SettingOutlined />,
       label: '系统设置',
@@ -76,6 +82,7 @@ function AppContent() {
     if (path === '/tasks/refine') return ['refine-tasks']
     if (path === '/categories') return ['categories']
     if (path === '/results') return ['results']
+    if (path === '/interest-points') return ['interest-points']
     if (path === '/notification-channels') return ['notification-channels']
     return []
   }
@@ -126,6 +133,7 @@ function AppContent() {
             <Route path="/tasks/refine" element={<TaskList type="refine" />} />
             <Route path="/categories" element={<CategoryList />} />
             <Route path="/results" element={<ResultDetail />} />
+            <Route path="/interest-points" element={<InterestPoints />} />
             <Route path="/refined/:id" element={<RefinedResultDetail />} />
             <Route path="/notification-channels" element={<NotificationChannels />} />
           </Routes>
