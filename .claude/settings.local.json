@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(cp data/app.db data/app.db.backup)",
+      "Bash(rm data/app.db)",
+      "Bash(git add:*)",
+      "Bash(git mv:*)",
+      "Bash(git -C /mnt/d/source/Personal-Information-Library add -A)",
+      "Bash(git -C:*)",
+      "Bash(git commit:*)",
+      "Bash(sqlite3:*)"
+    ]
+  }
+}

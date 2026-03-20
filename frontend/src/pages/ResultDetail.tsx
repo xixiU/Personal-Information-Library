@@ -28,8 +28,9 @@ export default function ResultDetail() {
       const params = sourceId ? { source_id: Number(sourceId) } : {}
       const refinedParams = {
         ...params,
-        min_score: scoreRange[0],
-        max_score: scoreRange[1],
+        // 只有用户收窄默认区间时才传分数过滤，避免 min_score=0 把 NULL 记录全部过滤掉
+        ...(scoreRange[0] > 0 && { min_score: scoreRange[0] }),
+        ...(scoreRange[1] < 100 && { max_score: scoreRange[1] }),
         order_by: orderBy,
         order,
       }

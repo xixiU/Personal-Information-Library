@@ -53,10 +53,15 @@ async def list_refined_results(
     """获取精炼结果列表."""
     query = db.query(RefinedResult)
 
+    # 分数过滤需同时保留 quality_score 为 NULL 的记录（未评分内容也应可见）
     if min_score is not None:
-        query = query.filter(RefinedResult.quality_score >= min_score)
+        query = query.filter(
+            (RefinedResult.quality_score >= min_score) | (RefinedResult.quality_score.is_(None))
+        )
     if max_score is not None:
-        query = query.filter(RefinedResult.quality_score <= max_score)
+        query = query.filter(
+            (RefinedResult.quality_score <= max_score) | (RefinedResult.quality_score.is_(None))
+        )
 
     # 排序
     sort_column = RefinedResult.created_at

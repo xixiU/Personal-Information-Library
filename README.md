@@ -37,6 +37,10 @@ uv pip install -e ".[dev]"
 cp .env.example .env
 # 编辑 .env，配置 OPENAI_API_KEY 等
 
+# dev
+uv run app/main.py
+
+# prod
 uvicorn app.main:app --reload
 ```
 
