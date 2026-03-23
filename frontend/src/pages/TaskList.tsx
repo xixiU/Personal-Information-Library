@@ -160,7 +160,7 @@ export default function TaskList({ type }: Props) {
         rowKey="id"
         loading={loading}
         onRow={(record) => ({
-          onClick: () => navigate(`/results?source_id=${record.source_id}`),
+          onClick: () => navigate(`/results?source_id=${record.source_id}&tab=${type === 'crawl' ? 'crawl' : 'refined'}`),
           style: { cursor: 'pointer' }
         })}
       />

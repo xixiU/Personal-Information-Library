@@ -18,9 +18,10 @@ export default function ResultDetail() {
   const [scoreRange, setScoreRange] = useState<[number, number]>([0, 100])
   const [orderBy, setOrderBy] = useState<string>('created_at')
   const [order, setOrder] = useState<string>('desc')
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const sourceId = searchParams.get('source_id')
+  const activeTab = searchParams.get('tab') || 'crawl'
 
   const loadResults = async () => {
     setLoading(true)
@@ -203,6 +204,12 @@ export default function ResultDetail() {
         />
       </Space>
       <Tabs
+        activeKey={activeTab}
+        onChange={(key) => {
+          const newParams = new URLSearchParams(searchParams)
+          newParams.set('tab', key)
+          setSearchParams(newParams)
+        }}
         items={[
           {
             key: 'crawl',

@@ -268,6 +268,7 @@ GET                  /api/results/crawl/{id}
 GET                  /api/results/refine
 GET                  /api/results/refine/{id}
 POST                 /api/refine/{crawl_result_id}
+POST                 /api/refine/{crawl_result_id}/re-refine
 
 # 通知渠道
 POST/GET/PUT/DELETE  /api/notification-channels
