@@ -107,8 +107,8 @@ class GenericPlugin(CrawlerPlugin):
         ):
             element.decompose()
 
-        # Convert relative URLs to absolute for img/video/source/a
-        for tag in main_content.find_all(["img", "video", "source", "a"]):
+        # Convert relative URLs to absolute for img/video/audio/source/a
+        for tag in main_content.find_all(["img", "video", "audio", "source", "a", "track"]):
             for attr in ["src", "href", "data-src", "poster"]:
                 val = tag.get(attr)
                 if val and not val.startswith(("http://", "https://", "data:", "//")):
@@ -120,12 +120,13 @@ class GenericPlugin(CrawlerPlugin):
         # Keep only meaningful tags, strip everything else
         allowed_tags = {
             "p", "h1", "h2", "h3", "h4", "h5", "h6",
-            "img", "video", "source", "picture", "figure", "figcaption",
+            "img", "video", "audio", "source", "track", "picture", "figure", "figcaption",
             "pre", "code",
             "ul", "ol", "li",
             "blockquote", "table", "thead", "tbody", "tr", "th", "td",
             "br", "hr", "a", "strong", "em", "b", "i", "span", "div",
             "sup", "sub", "del", "mark",
+            "svg", "canvas",
         }
 
         # Remove disallowed tags but keep their content (unwrap),
@@ -137,10 +138,10 @@ class GenericPlugin(CrawlerPlugin):
             elif tag.name not in allowed_tags:
                 tag.unwrap()
 
-        # Clean up: remove empty tags (except self-closing like img, br, hr, video)
-        self_closing = {"img", "br", "hr", "video", "source"}
+        # Clean up: remove empty tags (except self-closing like img, br, hr, video, audio, source, track, canvas, svg)
+        self_closing = {"img", "br", "hr", "video", "audio", "source", "track", "canvas", "svg"}
         for tag in main_content.find_all(True):
-            if tag.name not in self_closing and not tag.get_text(strip=True) and not tag.find(["img", "video"]):
+            if tag.name not in self_closing and not tag.get_text(strip=True) and not tag.find(["img", "video", "audio", "svg", "canvas"]):
                 tag.decompose()
 
         # Get inner HTML of main_content

@@ -216,7 +216,7 @@ export default function RefinedResultDetail() {
             {crawl.content ? (
               <div
                 className="rich-content"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(crawl.content, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling'] }) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(crawl.content, { ADD_TAGS: ['iframe', 'audio'], ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling', 'controls', 'src'] }) }}
               />
             ) : (
               <div>无内容</div>
