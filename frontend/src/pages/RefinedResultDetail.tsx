@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card, Descriptions, Tag, Button, message, Spin, Space, Input, List, Popconfirm } from 'antd'
-import { ArrowLeftOutlined, LikeOutlined, LikeFilled, StarOutlined, StarFilled, DislikeOutlined, DislikeFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, ReloadOutlined, LikeOutlined, LikeFilled, StarOutlined, StarFilled, DislikeOutlined, DislikeFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import { resultsApi, RefinedResult, CrawlResult } from '../api/results'
+import client from '../api/client'
 import { feedbackApi, UserFeedback } from '../api/feedback'
 import dayjs from 'dayjs'
 
@@ -19,6 +20,7 @@ export default function RefinedResultDetail() {
   const [commentOpen, setCommentOpen] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [reRefining, setReRefining] = useState(false)
 
   const refinedId = id ? Number(id) : 0
 
@@ -104,6 +106,19 @@ export default function RefinedResultDetail() {
     }
   }
 
+  const handleReRefine = async () => {
+    if (!refined?.crawl_result_id) return
+    setReRefining(true)
+    try {
+      await client.post(`/refine/${refined.crawl_result_id}/re-refine`)
+      message.success('已提交重新精炼任务')
+    } catch {
+      message.error('重新精炼失败')
+    } finally {
+      setReRefining(false)
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -125,13 +140,22 @@ export default function RefinedResultDetail() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: 16 }}
-      >
-        返回
-      </Button>
+      <Space style={{ marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+        >
+          返回
+        </Button>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={handleReRefine}
+          loading={reRefining}
+          disabled={!refined.crawl_result_id}
+        >
+          重新精炼
+        </Button>
+      </Space>
 
       <Card title="精炼结果详情" style={{ marginBottom: 16 }}>
         <Descriptions column={1} bordered>
@@ -161,8 +185,42 @@ export default function RefinedResultDetail() {
         </Descriptions>
       </Card>
 
+      <Card title="摘要" style={{ marginBottom: 16 }}>
+        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+          {refined.summary || '无摘要'}
+        </div>
+      </Card>
+
+      {crawl && (
+        <>
+          <Card title="原始内容" style={{ marginBottom: 16 }}>
+            <Descriptions column={1} bordered>
+              <Descriptions.Item label="标题">{crawl.title || '-'}</Descriptions.Item>
+              <Descriptions.Item label="URL">
+                {crawl.url ? (
+                  <a href={crawl.url} target="_blank" rel="noopener noreferrer">
+                    {crawl.url}
+                  </a>
+                ) : (
+                  '-'
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="采集时间">
+                {dayjs(crawl.created_at).format('YYYY-MM-DD HH:mm:ss')}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="正文内容" style={{ marginBottom: 16 }}>
+            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+              {crawl.content || '无内容'}
+            </div>
+          </Card>
+        </>
+      )}
+
       {/* 反馈按钮组 */}
-      <Card title="反馈" style={{ marginBottom: 16 }}>
+      <Card title="反馈">
         <Space size="middle" style={{ marginBottom: commentOpen ? 16 : 0 }}>
           <Button
             icon={hasAction('like') ? <LikeFilled /> : <LikeOutlined />}
@@ -249,40 +307,6 @@ export default function RefinedResultDetail() {
           </div>
         )}
       </Card>
-
-      <Card title="摘要" style={{ marginBottom: 16 }}>
-        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
-          {refined.summary || '无摘要'}
-        </div>
-      </Card>
-
-      {crawl && (
-        <>
-          <Card title="原始内容" style={{ marginBottom: 16 }}>
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="标题">{crawl.title || '-'}</Descriptions.Item>
-              <Descriptions.Item label="URL">
-                {crawl.url ? (
-                  <a href={crawl.url} target="_blank" rel="noopener noreferrer">
-                    {crawl.url}
-                  </a>
-                ) : (
-                  '-'
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="采集时间">
-                {dayjs(crawl.created_at).format('YYYY-MM-DD HH:mm:ss')}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-
-          <Card title="正文内容">
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
-              {crawl.content || '无内容'}
-            </div>
-          </Card>
-        </>
-      )}
     </div>
   )
 }

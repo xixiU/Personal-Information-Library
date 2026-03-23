@@ -15,9 +15,9 @@ export interface FeedbackCreate {
 
 export const feedbackApi = {
   submit: (refinedResultId: number, data: FeedbackCreate) =>
-    client.post<UserFeedback>(`/refined-results/${refinedResultId}/feedback`, data),
+    client.post<UserFeedback>(`/results/refine/${refinedResultId}/feedback`, data),
   list: (refinedResultId: number) =>
-    client.get<UserFeedback[]>(`/refined-results/${refinedResultId}/feedback`),
+    client.get<UserFeedback[]>(`/results/refine/${refinedResultId}/feedback`),
   delete: (feedbackId: number) =>
     client.delete(`/feedback/${feedbackId}`),
   stats: () =>
