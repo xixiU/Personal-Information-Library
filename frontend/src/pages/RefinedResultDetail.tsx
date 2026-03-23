@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { resultsApi, RefinedResult, CrawlResult } from '../api/results'
 import client from '../api/client'
 import { feedbackApi, UserFeedback } from '../api/feedback'
+import DOMPurify from 'dompurify'
 import dayjs from 'dayjs'
 
 export default function RefinedResultDetail() {
@@ -212,9 +213,14 @@ export default function RefinedResultDetail() {
           </Card>
 
           <Card title="正文内容" style={{ marginBottom: 16 }}>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
-              {crawl.content || '无内容'}
-            </div>
+            {crawl.content ? (
+              <div
+                className="rich-content"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(crawl.content, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling'] }) }}
+              />
+            ) : (
+              <div>无内容</div>
+            )}
           </Card>
         </>
       )}

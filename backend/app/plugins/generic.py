@@ -38,7 +38,7 @@ class GenericPlugin(CrawlerPlugin):
         title = self._extract_title(soup)
 
         # Extract main content
-        content = self._extract_content(soup)
+        content = self._extract_content(soup, url)
 
         # Extract metadata
         metadata = self._extract_metadata(soup, url)
@@ -77,10 +77,11 @@ class GenericPlugin(CrawlerPlugin):
 
         return "Untitled"
 
-    def _extract_content(self, soup: BeautifulSoup) -> str:
-        """Extract main content using simple readability algorithm."""
-        # Remove script and style elements
-        for element in soup(["script", "style", "nav", "header", "footer", "aside"]):
+    def _extract_content(self, soup: BeautifulSoup, url: str) -> str:
+        """Extract main content preserving rich text (images, videos, code blocks)."""
+        # Remove non-content elements
+        for element in soup(["script", "style", "nav", "header", "footer", "aside",
+                             "noscript", "iframe", "form", "button"]):
             element.decompose()
 
         # Try to find main content container
@@ -96,13 +97,59 @@ class GenericPlugin(CrawlerPlugin):
         if not main_content:
             main_content = soup.body
 
-        if main_content:
-            # Extract text from paragraphs
-            paragraphs = main_content.find_all("p")
-            content = "\n\n".join(p.get_text().strip() for p in paragraphs if p.get_text().strip())
-            return content
+        if not main_content:
+            return ""
 
-        return ""
+        # Remove ad/social/share elements within content
+        for element in main_content.select(
+            ".ad, .ads, .advertisement, .social-share, .share-buttons, "
+            ".related-posts, .sidebar, .widget, .comment, .comments"
+        ):
+            element.decompose()
+
+        # Convert relative URLs to absolute for img/video/source/a
+        for tag in main_content.find_all(["img", "video", "source", "a"]):
+            for attr in ["src", "href", "data-src", "poster"]:
+                val = tag.get(attr)
+                if val and not val.startswith(("http://", "https://", "data:", "//")):
+                    tag[attr] = urljoin(url, val)
+            # Use data-src as src fallback (lazy-loaded images)
+            if tag.name == "img" and not tag.get("src") and tag.get("data-src"):
+                tag["src"] = tag["data-src"]
+
+        # Keep only meaningful tags, strip everything else
+        allowed_tags = {
+            "p", "h1", "h2", "h3", "h4", "h5", "h6",
+            "img", "video", "source", "picture", "figure", "figcaption",
+            "pre", "code",
+            "ul", "ol", "li",
+            "blockquote", "table", "thead", "tbody", "tr", "th", "td",
+            "br", "hr", "a", "strong", "em", "b", "i", "span", "div",
+            "sup", "sub", "del", "mark",
+        }
+
+        # Remove disallowed tags but keep their content (unwrap),
+        # except for tags that should be fully removed
+        remove_entirely = {"input", "select", "textarea", "label"}
+        for tag in main_content.find_all(True):
+            if tag.name in remove_entirely:
+                tag.decompose()
+            elif tag.name not in allowed_tags:
+                tag.unwrap()
+
+        # Clean up: remove empty tags (except self-closing like img, br, hr, video)
+        self_closing = {"img", "br", "hr", "video", "source"}
+        for tag in main_content.find_all(True):
+            if tag.name not in self_closing and not tag.get_text(strip=True) and not tag.find(["img", "video"]):
+                tag.decompose()
+
+        # Get inner HTML of main_content
+        content = main_content.decode_contents().strip()
+
+        # Collapse excessive whitespace lines
+        content = re.sub(r'\n{3,}', '\n\n', content)
+
+        return content
 
     def _extract_metadata(self, soup: BeautifulSoup, url: str) -> Dict:
         """Extract metadata from HTML."""

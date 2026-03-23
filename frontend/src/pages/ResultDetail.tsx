@@ -3,6 +3,7 @@ import { Table, Card, message, Tabs, Input, Space, DatePicker, Slider, Select } 
 import { SearchOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { resultsApi, CrawlResult, RefinedResult } from '../api/results'
+import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 
 const { RangePicker } = DatePicker
@@ -119,15 +120,6 @@ export default function ResultDetail() {
     }
   ]
 
-  // 清理多余空白：合并连续空行为单个空行，去除行首尾空格
-  const cleanContent = (content: string) =>
-    content
-      .split('\n')
-      .map((line) => line.trimEnd())
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-
   const refinedColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true },
@@ -223,16 +215,14 @@ export default function ResultDetail() {
                 expandable={{
                   expandedRowRender: (record) => (
                     <Card>
-                      <pre style={{
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        margin: 0,
-                        fontFamily: 'inherit',
-                        fontSize: '14px',
-                        lineHeight: '1.6'
-                      }}>
-                        {record.content ? cleanContent(record.content) : '无内容'}
-                      </pre>
+                      {record.content ? (
+                        <div
+                          className="rich-content"
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(record.content, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling'] }) }}
+                        />
+                      ) : (
+                        <div>无内容</div>
+                      )}
                     </Card>
                   )
                 }}
