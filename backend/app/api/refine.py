@@ -42,6 +42,7 @@ async def trigger_refine(
         status="pending",
         priority=10,  # 手动触发的任务优先级较高
         source_id=crawl_result.source_id,
+        url=crawl_result.url,
         payload={"crawl_result_id": crawl_result_id, "template": template},
     )
     db.add(task)
@@ -54,6 +55,47 @@ async def trigger_refine(
 
     logger.info(f"Triggered refine for crawl result {crawl_result_id}, task {task.id}")
     return {"task_id": task.id, "message": "Refine task created"}
+
+
+@router.post("/{crawl_result_id}/re-refine", status_code=202)
+async def trigger_re_refine(
+    crawl_result_id: int,
+    template: str = "summary_keywords",
+    db: Session = Depends(get_db),
+):
+    """重新精炼 - 删除已有精炼结果并重新执行."""
+    # 检查爬取结果是否存在
+    crawl_result = db.query(CrawlResult).filter(CrawlResult.id == crawl_result_id).first()
+    if not crawl_result:
+        raise HTTPException(status_code=404, detail="Crawl result not found")
+
+    # 删除已有的精炼结果（如果有）
+    existing = db.query(RefinedResult).filter(
+        RefinedResult.crawl_result_id == crawl_result_id
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.flush()
+
+    # 创建精炼任务
+    task = Task(
+        type="refine",
+        status="pending",
+        priority=10,
+        source_id=crawl_result.source_id,
+        url=crawl_result.url,
+        payload={"crawl_result_id": crawl_result_id, "template": template},
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    # 提交到调度器
+    scheduler = get_scheduler()
+    await scheduler.submit_task(task.id, priority=task.priority)
+
+    logger.info(f"Triggered re-refine for crawl result {crawl_result_id}, task {task.id}")
+    return {"task_id": task.id, "message": "Re-refine task created"}
 
 
 @router.get("/templates")

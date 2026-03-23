@@ -1,6 +1,8 @@
 """FastAPI application entry point."""
 import logging
+import os
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,10 +15,23 @@ from app.api import notification_channels, notification_rules
 from app.api import feedback, interest_points, interest_discovery
 
 # 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+logging.basicConfig(level=log_level, format=log_format)
+
+# 文件日志
+log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+os.makedirs(log_dir, exist_ok=True)
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, "app.log"),
+    maxBytes=10 * 1024 * 1024,  # 10MB
+    backupCount=5,
+    encoding="utf-8",
 )
+file_handler.setLevel(log_level)
+file_handler.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(file_handler)
 
 logger = logging.getLogger(__name__)
 

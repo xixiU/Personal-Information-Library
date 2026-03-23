@@ -1,5 +1,6 @@
 """AI Refiner - AI精炼引擎."""
 import logging
+import re as _re
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -87,13 +88,16 @@ class RefinerEngine:
             # 尝试从分类获取自定义 prompt
             category_prompt = self._get_category_prompt(crawl_result, db)
 
+            # 预处理内容：去除不可见字符和多余换行，减少无意义 token
+            content = self._clean_content(crawl_result.content)
+
             # 构建提示词（优先级：custom_prompt > 分类 prompt > 模板）
             if custom_prompt:
                 messages = [
                     {"role": "system", "content": "你是一个专业的内容分析助手。"},
                     {"role": "user", "content": custom_prompt.format(
                         title=crawl_result.title or "无标题",
-                        content=self._truncate_content(crawl_result.content),
+                        content=content,
                     )},
                 ]
             elif category_prompt:
@@ -101,7 +105,7 @@ class RefinerEngine:
                     {"role": "system", "content": category_prompt["system"]},
                     {"role": "user", "content": category_prompt["user"].format(
                         title=crawl_result.title or "无标题",
-                        content=self._truncate_content(crawl_result.content),
+                        content=content,
                     )},
                 ]
                 template_name = "category_custom"
@@ -115,11 +119,13 @@ class RefinerEngine:
                     {"role": "system", "content": template["system"]},
                     {"role": "user", "content": template["user"].format(
                         title=crawl_result.title or "无标题",
-                        content=self._truncate_content(crawl_result.content),
+                        content=content,
                     )},
                 ]
 
             logger.info(f"Refining crawl result {crawl_result.id} with template {template_name}")
+            logger.debug(f"[LLM Request] crawl_result_id={crawl_result.id} system_prompt={messages[0]['content']}")
+            logger.debug(f"[LLM Request] crawl_result_id={crawl_result.id} user_prompt={messages[1]['content']}")
 
             # 调用OpenAI API（带重试）
             response_text = await self._call_openai_with_retry(messages)
@@ -127,6 +133,8 @@ class RefinerEngine:
             if not response_text:
                 logger.error(f"Failed to refine crawl result {crawl_result.id}")
                 return None
+
+            logger.debug(f"[LLM Response] crawl_result_id={crawl_result.id} raw_response={response_text}")
 
             # 解析响应
             refined_data = self._parse_response(response_text, template_name)
@@ -242,7 +250,8 @@ class RefinerEngine:
                     model=self.model,
                     messages=messages,
                     temperature=0.3,
-                    max_tokens=1000,
+                    stream=False,
+                    #max_tokens=1000,
                 )
 
                 return response.choices[0].message.content
@@ -259,21 +268,12 @@ class RefinerEngine:
 
         return None
 
-    def _truncate_content(self, content: str, max_length: int = 4000) -> str:
-        """
-        截断内容到指定长度.
-
-        Args:
-            content: 原始内容
-            max_length: 最大长度
-
-        Returns:
-            截断后的内容
-        """
-        if len(content) <= max_length:
-            return content
-
-        return content[:max_length] + "\n\n...(内容已截断)"
+    @staticmethod
+    def _clean_content(content: str) -> str:
+        """清理内容：去除不可见字符和多余换行，减少无意义 token."""
+        content = _re.sub(r'[\t\r\x0b\x0c\u200b\u200c\u200d\ufeff]', '', content)
+        content = _re.sub(r'\n{2,}', '\n', content)
+        return content.strip()
 
     def _parse_response(self, response_text: str, template_name: str) -> Dict[str, Any]:
         """
@@ -293,6 +293,9 @@ class RefinerEngine:
             if template_name in ["keywords", "summary_keywords", "category_custom"]:
                 import json
                 import re
+
+                # 清理 markdown 代码块标签
+                response_text = re.sub(r'```(?:json)?\s*\n?', '', response_text).strip()
 
                 # 提取JSON部分
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)

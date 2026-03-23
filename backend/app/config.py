@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "Personal Information Library"
     app_version: str = "0.1.0"
     debug: bool = False
+    log_level: str = "INFO"
 
     # Database
     database_url: str = "sqlite:///./data/app.db"
