@@ -270,8 +270,17 @@ class RefinerEngine:
 
     @staticmethod
     def _clean_content(content: str) -> str:
-        """清理内容：去除不可见字符和多余换行，减少无意义 token."""
+        """清理内容：HTML 转纯文本 + 去除不可见字符和多余换行，减少无意义 token."""
+        # 检测是否包含 HTML 标签
+        if '<' in content and '>' in content:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(content, 'lxml')
+            # 转为纯文本，段落间用换行分隔
+            content = soup.get_text(separator='\n', strip=True)
+
+        # 去除不可见字符
         content = _re.sub(r'[\t\r\x0b\x0c\u200b\u200c\u200d\ufeff]', '', content)
+        # 合并连续换行为单个换行
         content = _re.sub(r'\n{2,}', '\n', content)
         return content.strip()
 
