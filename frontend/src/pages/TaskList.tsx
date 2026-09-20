@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, Tag, message, Input, Select, Space, Button, Tooltip, DatePicker } from 'antd'
+import { Table, Tag, message, Input, Select, Space, Button, Tooltip, DatePicker, Card, Empty } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { tasksApi, Task } from '../api/tasks'
@@ -123,47 +123,57 @@ export default function TaskList({ type }: Props) {
 
   return (
     <div style={{ padding: 24 }}>
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Select
-          placeholder="筛选状态"
-          style={{ width: 150 }}
-          value={statusFilter || undefined}
-          onChange={setStatusFilter}
-          allowClear
-        >
-          <Select.Option value="pending">待执行</Select.Option>
-          <Select.Option value="running">执行中</Select.Option>
-          <Select.Option value="success">成功</Select.Option>
-          <Select.Option value="failed">失败</Select.Option>
-          <Select.Option value="timeout">超时</Select.Option>
-        </Select>
-        <Input
-          placeholder="信源ID"
-          style={{ width: 150 }}
-          value={sourceIdFilter}
-          onChange={(e) => setSourceIdFilter(e.target.value)}
-          prefix={<SearchOutlined />}
-          allowClear
+      <Card>
+        <Space style={{ marginBottom: 16 }} wrap>
+          <Select
+            placeholder="筛选状态"
+            style={{ width: 150 }}
+            value={statusFilter || undefined}
+            onChange={setStatusFilter}
+            allowClear
+          >
+            <Select.Option value="pending">待执行</Select.Option>
+            <Select.Option value="running">执行中</Select.Option>
+            <Select.Option value="success">成功</Select.Option>
+            <Select.Option value="failed">失败</Select.Option>
+            <Select.Option value="timeout">超时</Select.Option>
+          </Select>
+          <Input
+            placeholder="信源ID"
+            style={{ width: 150 }}
+            value={sourceIdFilter}
+            onChange={(e) => setSourceIdFilter(e.target.value)}
+            prefix={<SearchOutlined />}
+            allowClear
+          />
+          <RangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            placeholder={['开始时间', '结束时间']}
+            style={{ width: 280 }}
+          />
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={loadTasks}>刷新</Button>
+        </Space>
+        <Table
+          columns={columns}
+          dataSource={tasks}
+          rowKey="id"
+          loading={loading}
+          onRow={(record) => ({
+            onClick: () => navigate(`/results?source_id=${record.source_id}&tab=${type === 'crawl' ? 'crawl' : 'refined'}`),
+            style: { cursor: 'pointer' }
+          })}
+          locale={{
+            emptyText: (
+              <Empty
+                description={`暂无${type === 'crawl' ? '爬取' : '精炼'}任务`}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ),
+          }}
         />
-        <RangePicker
-          value={dateRange}
-          onChange={setDateRange}
-          placeholder={['开始时间', '结束时间']}
-          style={{ width: 280 }}
-        />
-        <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
-        <Button type="primary" icon={<ReloadOutlined />} onClick={loadTasks}>刷新</Button>
-      </Space>
-      <Table
-        columns={columns}
-        dataSource={tasks}
-        rowKey="id"
-        loading={loading}
-        onRow={(record) => ({
-          onClick: () => navigate(`/results?source_id=${record.source_id}&tab=${type === 'crawl' ? 'crawl' : 'refined'}`),
-          style: { cursor: 'pointer' }
-        })}
-      />
+      </Card>
     </div>
   )
 }

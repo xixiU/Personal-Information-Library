@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Layout, Menu } from 'antd'
+import { Layout, Menu, ConfigProvider } from 'antd'
 import { useState } from 'react'
-import { DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined, SettingOutlined, BellOutlined, StarOutlined } from '@ant-design/icons'
+import { DashboardOutlined, DatabaseOutlined, UnorderedListOutlined, FileTextOutlined, ThunderboltOutlined, CheckCircleOutlined, TagsOutlined, SettingOutlined, BellOutlined, StarOutlined } from '@ant-design/icons'
+import Dashboard from './pages/Dashboard'
 import SourceList from './pages/SourceList'
 import TaskList from './pages/TaskList'
 import ResultDetail from './pages/ResultDetail'
@@ -18,6 +19,11 @@ function AppContent() {
 
   const menuItems = [
     {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: <Link to="/dashboard">仪表盘</Link>,
+    },
+    {
       key: 'sources-parent',
       icon: <DatabaseOutlined />,
       label: '信源管理',
@@ -25,7 +31,7 @@ function AppContent() {
         {
           key: 'sources',
           icon: <DatabaseOutlined />,
-          label: <Link to="/">信源列表</Link>,
+          label: <Link to="/sources">信源列表</Link>,
         },
         {
           key: 'categories',
@@ -77,7 +83,8 @@ function AppContent() {
 
   const getSelectedKeys = () => {
     const path = location.pathname
-    if (path === '/') return ['sources']
+    if (path === '/' || path === '/dashboard') return ['dashboard']
+    if (path === '/sources') return ['sources']
     if (path === '/tasks/crawl') return ['crawl-tasks']
     if (path === '/tasks/refine') return ['refine-tasks']
     if (path === '/categories') return ['categories']
@@ -89,7 +96,7 @@ function AppContent() {
 
   const getOpenKeys = () => {
     const path = location.pathname
-    if (path === '/' || path === '/categories') return ['sources-parent']
+    if (path === '/sources' || path === '/categories') return ['sources-parent']
     if (path.startsWith('/tasks')) return ['tasks']
     if (path === '/notification-channels') return ['settings']
     return []
@@ -128,7 +135,9 @@ function AppContent() {
       <Layout>
         <Content style={{ background: '#f0f2f5' }}>
           <Routes>
-            <Route path="/" element={<SourceList />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/sources" element={<SourceList />} />
             <Route path="/tasks/crawl" element={<TaskList type="crawl" />} />
             <Route path="/tasks/refine" element={<TaskList type="refine" />} />
             <Route path="/categories" element={<CategoryList />} />
@@ -145,8 +154,22 @@ function AppContent() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#1890ff',
+          borderRadius: 6,
+        },
+        components: {
+          Card: {
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
+          },
+        },
+      }}
+    >
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </ConfigProvider>
   )
 }

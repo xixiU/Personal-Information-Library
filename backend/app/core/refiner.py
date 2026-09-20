@@ -148,6 +148,9 @@ class RefinerEngine:
                 except (ValueError, TypeError):
                     refined_data["quality_score"] = None
 
+            # 计算兴趣分（B1：兴趣智能排序）
+            interest_score = self._calculate_interest_score(refined_data.get("keywords"), db)
+
             # 创建精炼结果
             refined_result = RefinedResult(
                 crawl_result_id=crawl_result.id,
@@ -155,6 +158,7 @@ class RefinerEngine:
                 keywords=refined_data.get("keywords"),
                 category=refined_data.get("category"),
                 quality_score=refined_data.get("quality_score"),
+                interest_score=interest_score,
                 meta_data={
                     "template": template_name,
                     "model": self.model,
@@ -268,6 +272,69 @@ class RefinerEngine:
 
         return None
 
+    def _calculate_interest_score(
+        self, keywords: Optional[list], db: Optional[Session]
+    ) -> Optional[float]:
+        """
+        计算兴趣匹配分（B1：兴趣智能排序）.
+
+        Args:
+            keywords: 精炼结果的关键词列表
+            db: 数据库会话
+
+        Returns:
+            兴趣分 0.0~1.0，无兴趣点或关键词为空时返回 None
+        """
+        if not db or not keywords:
+            return None
+
+        try:
+            from app.models.interest import InterestPoint
+
+            # 读取所有激活的兴趣点
+            interest_points = db.query(InterestPoint).filter(
+                InterestPoint.is_active == True
+            ).all()
+
+            if not interest_points:
+                return None
+
+            # 计算相似度：加权交集占比
+            result_kw_set = set(kw.lower() for kw in keywords if kw)
+            if not result_kw_set:
+                return None
+
+            total_score = 0.0
+            total_weight = 0.0
+
+            for point in interest_points:
+                point_kw = point.keywords or []
+                point_kw_set = set(kw.lower() for kw in point_kw if kw)
+
+                if not point_kw_set:
+                    continue
+
+                # 交集占比 = 交集大小 / 并集大小（Jaccard相似度）
+                intersection = result_kw_set & point_kw_set
+                union = result_kw_set | point_kw_set
+                similarity = len(intersection) / len(union) if union else 0.0
+
+                # 加权累加
+                weight = point.weight or 0.5
+                total_score += similarity * weight
+                total_weight += weight
+
+            if total_weight == 0:
+                return None
+
+            # 归一化到 0.0~1.0
+            interest_score = min(1.0, total_score / total_weight)
+            return round(interest_score, 3)
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate interest score: {e}")
+            return None
+
     @staticmethod
     def _clean_content(content: str) -> str:
         """清理内容：HTML 转纯文本 + 去除不可见字符和多余换行，减少无意义 token."""
@@ -335,6 +402,58 @@ class RefinerEngine:
     def get_templates(cls) -> Dict[str, Dict[str, str]]:
         """获取所有模板."""
         return cls.TEMPLATES
+
+    async def refine_batch(
+        self,
+        crawl_results: list[CrawlResult],
+        template_name: str = "summary_keywords",
+        custom_prompt: Optional[str] = None,
+        db: Optional[Session] = None,
+        max_concurrent: Optional[int] = None,
+    ) -> list[Optional[RefinedResult]]:
+        """
+        批量并发精炼.
+
+        Args:
+            crawl_results: 爬取结果列表
+            template_name: 模板名称
+            custom_prompt: 自定义提示词
+            db: 数据库会话
+            max_concurrent: 最大并发数（默认从 config 读取，fallback 到 5）
+
+        Returns:
+            精炼结果列表（与输入顺序一致，失败项为 None）
+        """
+        import asyncio
+
+        if not crawl_results:
+            return []
+
+        # 读取并发数配置
+        if max_concurrent is None:
+            max_concurrent = getattr(settings, "refine_max_concurrent", 5)
+
+        logger.info(f"Starting batch refine for {len(crawl_results)} items with concurrency={max_concurrent}")
+
+        # 创建信号量限流
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def refine_with_semaphore(crawl_result: CrawlResult) -> Optional[RefinedResult]:
+            """带信号量的精炼任务."""
+            async with semaphore:
+                try:
+                    return await self.refine(crawl_result, template_name, custom_prompt, db)
+                except Exception as e:
+                    logger.error(f"Batch refine failed for crawl_result {crawl_result.id}: {e}")
+                    return None
+
+        # 并发执行
+        results = await asyncio.gather(*[refine_with_semaphore(cr) for cr in crawl_results])
+
+        success_count = sum(1 for r in results if r is not None)
+        logger.info(f"Batch refine completed: {success_count}/{len(crawl_results)} succeeded")
+
+        return results
 
     @classmethod
     def add_template(cls, name: str, system: str, user: str, description: str = ""):

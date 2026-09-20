@@ -35,7 +35,7 @@ class NotificationRule(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     channel_id = Column(Integer, ForeignKey("notification_channels.id"), nullable=False, index=True)
     rule_type = Column(String(30), nullable=False)  # new_content / quality_threshold / keyword_match
-    notify_mode = Column(String(20), nullable=False, default="instant")  # instant / batch
+    notify_mode = Column(String(20), nullable=False, default="instant")  # instant / batch / scheduled
     conditions = Column(JSON, nullable=False, default=dict)
     message_template = Column(Text, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True)

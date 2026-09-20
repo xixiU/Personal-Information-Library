@@ -57,7 +57,7 @@ class NotificationRuleCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     channel_id: int
     rule_type: str = Field(..., pattern="^(new_content|quality_threshold|keyword_match)$")
-    notify_mode: str = Field(default="instant", pattern="^(instant|batch)$")
+    notify_mode: str = Field(default="instant", pattern="^(instant|batch|scheduled)$")
     conditions: dict = Field(default_factory=dict)
     message_template: Optional[str] = None
     enabled: bool = True
@@ -69,7 +69,7 @@ class NotificationRuleUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     channel_id: Optional[int] = None
     rule_type: Optional[str] = Field(None, pattern="^(new_content|quality_threshold|keyword_match)$")
-    notify_mode: Optional[str] = Field(None, pattern="^(instant|batch)$")
+    notify_mode: Optional[str] = Field(None, pattern="^(instant|batch|scheduled)$")
     conditions: Optional[dict] = None
     message_template: Optional[str] = None
     enabled: Optional[bool] = None

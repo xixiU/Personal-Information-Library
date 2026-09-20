@@ -10,9 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.core.scheduler import get_scheduler
-from app.api import sources, tasks, results, refine, plugins, categories
+from app.api import sources, tasks, results, refine, plugins, categories, dashboard
 from app.api import notification_channels, notification_rules
 from app.api import feedback, interest_points, interest_discovery
+from app.api import highlights
 
 # 配置日志
 log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -78,11 +79,13 @@ app.include_router(tasks.router)
 app.include_router(results.router)
 app.include_router(refine.router)
 app.include_router(plugins.router)
+app.include_router(dashboard.router)
 app.include_router(notification_channels.router)
 app.include_router(notification_rules.router)
 app.include_router(feedback.router)
 app.include_router(interest_discovery.router)
 app.include_router(interest_points.router)
+app.include_router(highlights.router)
 
 
 @app.get("/")

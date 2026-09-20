@@ -1,7 +1,7 @@
 """Result models - 爬取结果和精炼结果."""
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON, Boolean, Index
 from app.database import Base
 
 
@@ -34,4 +34,12 @@ class RefinedResult(Base):
     quality_score = Column(Integer, nullable=True)  # 质量评分 0-100
     interest_score = Column(Float, nullable=True, index=True)  # 兴趣匹配分 0.0~1.0
     meta_data = Column(JSON, nullable=True)  # Additional refined data
+    is_read = Column(Boolean, nullable=False, default=False, index=True)  # 已读标记（任务 E）
+    is_archived = Column(Boolean, nullable=False, default=False, index=True)  # 归档标记（任务 E）
+    read_at = Column(DateTime, nullable=True)  # 标记已读的时间（任务 E）
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_results_read", "is_read", "created_at"),
+        Index("idx_results_archived", "is_archived"),
+    )

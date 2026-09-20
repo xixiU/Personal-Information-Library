@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, message, Tabs, Input, Space, DatePicker, Slider, Select } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
+import { Table, Card, message, Tabs, Input, Space, DatePicker, Slider, Select, Badge, Button, Segmented, Tag } from 'antd'
+import { SearchOutlined, CheckOutlined, InboxOutlined, HighlightOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { resultsApi, CrawlResult, RefinedResult } from '../api/results'
 import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 
 const { RangePicker } = DatePicker
+
+// 精炼结果的已读/归档状态过滤（契约 §2）
+type RefinedStatus = 'unread' | 'all' | 'archived'
 
 export default function ResultDetail() {
   const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([])
@@ -17,12 +20,22 @@ export default function ResultDetail() {
   const [searchText, setSearchText] = useState('')
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [scoreRange, setScoreRange] = useState<[number, number]>([0, 100])
-  const [orderBy, setOrderBy] = useState<string>('created_at')
+  // 排序：默认空字符串（不传 order_by，让后端走兴趣分降序）；用户显式选择时才传参
+  const [orderBy, setOrderBy] = useState<string>('')
   const [order, setOrder] = useState<string>('desc')
+  // 精炼结果的已读/归档状态：默认未读
+  const [refinedStatus, setRefinedStatus] = useState<RefinedStatus>('unread')
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const sourceId = searchParams.get('source_id')
   const activeTab = searchParams.get('tab') || 'crawl'
+
+  // 根据状态维度映射为 is_read/is_archived 查询参数（契约 §2）
+  const buildStatusParams = (): { is_read?: boolean; is_archived?: boolean } => {
+    if (refinedStatus === 'unread') return { is_read: false, is_archived: false }
+    if (refinedStatus === 'archived') return { is_archived: true }
+    return { is_archived: false } // 全部（不含归档，不限已读）
+  }
 
   const loadResults = async () => {
     setLoading(true)
@@ -33,8 +46,9 @@ export default function ResultDetail() {
         // 只有用户收窄默认区间时才传分数过滤，避免 min_score=0 把 NULL 记录全部过滤掉
         ...(scoreRange[0] > 0 && { min_score: scoreRange[0] }),
         ...(scoreRange[1] < 100 && { max_score: scoreRange[1] }),
-        order_by: orderBy,
-        order,
+        ...buildStatusParams(),
+        // 只有用户显式选择排序时才传 order_by，否则让后端走兴趣分降序（默认体验）
+        ...(orderBy && { order_by: orderBy, order }),
       }
       const [crawlRes, refinedRes] = await Promise.all([
         resultsApi.listCrawl(params),
@@ -53,7 +67,7 @@ export default function ResultDetail() {
 
   useEffect(() => {
     loadResults()
-  }, [sourceId, scoreRange, orderBy, order])
+  }, [sourceId, scoreRange, orderBy, order, refinedStatus])
 
   useEffect(() => {
     if (!searchText && !dateRange) {
@@ -98,6 +112,28 @@ export default function ResultDetail() {
     }
   }, [searchText, dateRange, crawlResults, refinedResults])
 
+  // 标记已读/未读
+  const handleMarkRead = async (id: number, isRead: boolean) => {
+    try {
+      await resultsApi.markRead(id, isRead)
+      message.success(isRead ? '已标记为已读' : '已标记为未读')
+      loadResults()
+    } catch {
+      message.error('操作失败')
+    }
+  }
+
+  // 归档/取消归档
+  const handleArchive = async (id: number, isArchived: boolean) => {
+    try {
+      await resultsApi.archive(id, isArchived)
+      message.success(isArchived ? '已归档' : '已取消归档')
+      loadResults()
+    } catch {
+      message.error('操作失败')
+    }
+  }
+
   const crawlColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '标题', dataIndex: 'title', key: 'title' },
@@ -121,8 +157,34 @@ export default function ResultDetail() {
   ]
 
   const refinedColumns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true },
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 90,
+      render: (id: number, record: RefinedResult) => (
+        // 未读结果显示蓝色圆点
+        <Space>
+          {!record.is_read && <Badge color="#1890ff" />}
+          {id}
+        </Space>
+      )
+    },
+    {
+      title: '摘要',
+      dataIndex: 'summary',
+      key: 'summary',
+      ellipsis: true,
+      render: (summary: string | null, record: RefinedResult) => (
+        <Space>
+          {/* 高亮数量徽章：后端返回 highlight_count 且 >0 时显示 */}
+          {!!record.highlight_count && record.highlight_count > 0 && (
+            <Tag icon={<HighlightOutlined />} color="gold">{record.highlight_count}</Tag>
+          )}
+          <span>{summary}</span>
+        </Space>
+      )
+    },
     {
       title: '关键词',
       dataIndex: 'keywords',
@@ -142,6 +204,32 @@ export default function ResultDetail() {
       dataIndex: 'created_at',
       key: 'created_at',
       render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 200,
+      // 阻止行点击跳转
+      render: (_: unknown, record: RefinedResult) => (
+        <Space onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="small"
+            type="link"
+            icon={<CheckOutlined />}
+            onClick={() => handleMarkRead(record.id, !record.is_read)}
+          >
+            {record.is_read ? '标记未读' : '标记已读'}
+          </Button>
+          <Button
+            size="small"
+            type="link"
+            icon={<InboxOutlined />}
+            onClick={() => handleArchive(record.id, !record.is_archived)}
+          >
+            {record.is_archived ? '取消归档' : '归档'}
+          </Button>
+        </Space>
+      )
     }
   ]
 
@@ -174,9 +262,19 @@ export default function ResultDetail() {
           />
         </div>
         <Select
-          value={orderBy === 'quality_score' ? `quality_score_${order}` : 'default'}
+          value={
+            orderBy === 'quality_score'
+              ? `quality_score_${order}`
+              : orderBy === 'created_at'
+                ? 'created_at_desc'
+                : 'default'
+          }
           onChange={(val) => {
             if (val === 'default') {
+              // 兴趣分降序：前端不传 order_by，由后端默认排序
+              setOrderBy('')
+              setOrder('desc')
+            } else if (val === 'created_at_desc') {
               setOrderBy('created_at')
               setOrder('desc')
             } else if (val === 'quality_score_desc') {
@@ -189,7 +287,8 @@ export default function ResultDetail() {
           }}
           style={{ width: 160 }}
           options={[
-            { label: '默认（时间）', value: 'default' },
+            { label: '兴趣分（默认）', value: 'default' },
+            { label: '最新优先', value: 'created_at_desc' },
             { label: '质量分数↓', value: 'quality_score_desc' },
             { label: '质量分数↑', value: 'quality_score_asc' },
           ]}
@@ -233,15 +332,26 @@ export default function ResultDetail() {
             key: 'refined',
             label: '精炼结果',
             children: (
-              <Table
-                columns={refinedColumns}
-                dataSource={filteredRefinedResults}
-                rowKey="id"
-                loading={loading}
-                onRow={(record) => ({
-                  onClick: () => navigate(`/refined/${record.id}`),
-                  style: { cursor: 'pointer' }
-                })}
+              <>
+                <Segmented
+                  value={refinedStatus}
+                  onChange={(val) => setRefinedStatus(val as RefinedStatus)}
+                  options={[
+                    { label: '未读', value: 'unread' },
+                    { label: '全部', value: 'all' },
+                    { label: '已归档', value: 'archived' },
+                  ]}
+                  style={{ marginBottom: 16 }}
+                />
+                <Table
+                  columns={refinedColumns}
+                  dataSource={filteredRefinedResults}
+                  rowKey="id"
+                  loading={loading}
+                  onRow={(record) => ({
+                    onClick: () => navigate(`/refined/${record.id}`),
+                    style: { cursor: 'pointer' }
+                  })}
                 expandable={{
                   expandedRowRender: (record) => (
                     <Card>
@@ -266,7 +376,8 @@ export default function ResultDetail() {
                     </Card>
                   )
                 }}
-              />
+                />
+              </>
             )
           }
         ]}

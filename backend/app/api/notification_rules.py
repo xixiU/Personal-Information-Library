@@ -48,6 +48,15 @@ async def create_rule(
     db.commit()
     db.refresh(rule)
     logger.info(f"Created notification rule: {rule.id} for category {category_id}")
+
+    # 若为定时日报规则，动态注册定时任务
+    if rule.notify_mode == "scheduled" and rule.enabled:
+        try:
+            from app.core.scheduler import get_scheduler
+            await get_scheduler().add_scheduled_notification(rule)
+        except Exception as e:
+            logger.warning(f"注册定时通知任务失败 rule {rule.id}: {e}")
+
     return rule
 
 
@@ -93,6 +102,17 @@ async def update_rule(
 
     db.commit()
     db.refresh(rule)
+
+    # 同步定时任务：先移除旧的，再按当前状态决定是否重新注册
+    try:
+        from app.core.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        await scheduler.remove_scheduled_notification(rule.id)
+        if rule.notify_mode == "scheduled" and rule.enabled:
+            await scheduler.add_scheduled_notification(rule)
+    except Exception as e:
+        logger.warning(f"同步定时通知任务失败 rule {rule.id}: {e}")
+
     return rule
 
 
@@ -106,6 +126,14 @@ async def delete_rule(category_id: int, rule_id: int, db: Session = Depends(get_
     )
     if not rule:
         raise HTTPException(status_code=404, detail="通知规则不存在")
+
+    # 移除关联的定时任务（若有）
+    if rule.notify_mode == "scheduled":
+        try:
+            from app.core.scheduler import get_scheduler
+            await get_scheduler().remove_scheduled_notification(rule_id)
+        except Exception as e:
+            logger.warning(f"移除定时通知任务失败 rule {rule_id}: {e}")
 
     db.delete(rule)
     db.commit()

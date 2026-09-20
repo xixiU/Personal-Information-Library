@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Modal, Form, Input, message, Space, Tag, Popconfirm, ColorPicker, Select, Tabs, Switch, InputNumber, Radio } from 'antd'
+import { Table, Button, Modal, Form, Input, message, Space, Tag, Popconfirm, ColorPicker, Select, Tabs, Switch, InputNumber, Radio, Card, Empty } from 'antd'
 import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons'
 import { categoriesApi, Category, CreateCategoryRequest } from '../api/categories'
 import { rulesApi, channelsApi, NotificationRule, CreateRuleRequest, NotificationChannel } from '../api/notifications'
@@ -435,27 +435,37 @@ export default function CategoryList() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Input
-          placeholder="搜索分类名称或描述"
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 300 }}
-          allowClear
-        />
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-          新增分类
-        </Button>
-      </div>
+      <Card>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+          <Input
+            placeholder="搜索分类名称或描述"
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 300 }}
+            allowClear
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+            新增分类
+          </Button>
+        </div>
 
-      <Table
-        columns={columns}
-        dataSource={filteredCategories}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20 }}
-      />
+        <Table
+          columns={columns}
+          dataSource={filteredCategories}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+          locale={{
+            emptyText: (
+              <Empty
+                description='还没有分类，点击"新增分类"开始使用'
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ),
+          }}
+        />
+      </Card>
 
       <Modal
         title={editingCategory ? '编辑分类' : '新增分类'}

@@ -51,6 +51,9 @@ class TaskScheduler:
         # 加载所有信源的定时任务
         await self._load_scheduled_sources()
 
+        # 加载定时日报任务（任务 C）
+        await self._load_scheduled_notifications()
+
         # 启动worker
         for i in range(settings.crawler_max_workers):
             worker = asyncio.create_task(self._worker(i))
@@ -437,6 +440,98 @@ class TaskScheduler:
 
         except Exception as e:
             logger.error(f"Failed to create scheduled task for source {source_id}: {e}", exc_info=True)
+        finally:
+            db.close()
+
+    async def _load_scheduled_notifications(self):
+        """加载定时日报任务（任务 C：定时日报）."""
+        db = SessionLocal()
+        try:
+            from app.models.notification import NotificationRule, NotificationChannel
+
+            # 查询所有 scheduled 模式的通知规则
+            rules = db.query(NotificationRule).filter(
+                NotificationRule.enabled == True,
+                NotificationRule.notify_mode == "scheduled",
+                NotificationRule.channel.has(NotificationChannel.enabled == True),
+            ).all()
+
+            logger.info(f"Loading {len(rules)} scheduled notification rules")
+
+            for rule in rules:
+                await self._add_scheduled_notification(rule)
+
+        except Exception as e:
+            logger.error(f"Failed to load scheduled notifications: {e}", exc_info=True)
+        finally:
+            db.close()
+
+    async def _add_scheduled_notification(self, rule):
+        """
+        添加定时通知任务.
+
+        Args:
+            rule: NotificationRule 对象
+        """
+        try:
+            conditions = rule.conditions or {}
+            cron_expr = conditions.get("cron", "0 8 * * *")  # 默认每天早上8点
+
+            # 解析 cron 表达式
+            trigger = CronTrigger.from_crontab(cron_expr)
+
+            # 添加定时任务
+            job = self.apscheduler.add_job(
+                self._scheduled_notification_callback,
+                trigger=trigger,
+                args=[rule.id],
+                id=f"notification_{rule.id}",
+                replace_existing=True,
+            )
+
+            logger.info(f"Added scheduled notification job for rule {rule.id}: {cron_expr}")
+
+        except Exception as e:
+            logger.error(f"Failed to add scheduled notification for rule {rule.id}: {e}", exc_info=True)
+
+    async def add_scheduled_notification(self, rule):
+        """公开方法：注册/更新定时通知任务（供 API 创建规则后调用）."""
+        await self._add_scheduled_notification(rule)
+
+    async def remove_scheduled_notification(self, rule_id: int):
+        """移除定时通知任务（供 API 删除/禁用规则后调用）."""
+        job_id = f"notification_{rule_id}"
+        try:
+            self.apscheduler.remove_job(job_id)
+            logger.info(f"Removed scheduled notification job for rule {rule_id}")
+        except Exception:
+            # job 可能不存在，忽略
+            pass
+
+    async def _scheduled_notification_callback(self, rule_id: int):
+        """
+        定时通知回调函数.
+
+        Args:
+            rule_id: 规则 ID
+        """
+        logger.info(f"Scheduled notification triggered for rule {rule_id}")
+
+        db = SessionLocal()
+        try:
+            from app.models.notification import NotificationRule
+            from app.core.notifier import NotificationEngine
+
+            rule = db.query(NotificationRule).filter(NotificationRule.id == rule_id).first()
+            if not rule or not rule.enabled:
+                logger.warning(f"Rule {rule_id} is not enabled, skipping")
+                return
+
+            engine = NotificationEngine(scheduler=self.apscheduler)
+            await engine.send_scheduled_digest(rule, db)
+
+        except Exception as e:
+            logger.error(f"Failed to send scheduled notification for rule {rule_id}: {e}", exc_info=True)
         finally:
             db.close()
 

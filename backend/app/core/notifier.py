@@ -68,6 +68,7 @@ class NotificationEngine:
                     await self._send_instant(rule, refined_result, db)
                 elif rule.notify_mode == "batch":
                     await self._enqueue_batch(rule, refined_result, db)
+                # scheduled 模式在 scheduler 里定时触发，这里不处理
             except Exception as e:
                 logger.error(f"Failed to process rule {rule.id}: {e}", exc_info=True)
 
@@ -239,6 +240,91 @@ class NotificationEngine:
 
         if success:
             logger.info(f"Batch notification sent for rule {rule_id}, {len(items)} items")
+
+    async def send_scheduled_digest(self, rule: NotificationRule, db: Session):
+        """
+        发送定时日报（任务 C：定时日报）.
+
+        Args:
+            rule: 通知规则（notify_mode="scheduled"）
+            db: 数据库会话
+        """
+        from datetime import datetime, timedelta
+
+        try:
+            # 获取配置
+            conditions = rule.conditions or {}
+            hours = conditions.get("digest_hours", 24)  # 默认过去24小时
+            min_quality = conditions.get("min_quality_score", 70)
+            min_interest = conditions.get("min_interest_score", 0.6)
+
+            # 查询过去 N 小时的精炼结果
+            since = datetime.utcnow() - timedelta(hours=hours)
+            results = (
+                db.query(RefinedResult)
+                .filter(
+                    RefinedResult.created_at >= since,
+                    (RefinedResult.quality_score >= min_quality) | (RefinedResult.interest_score >= min_interest)
+                )
+                .order_by(
+                    RefinedResult.interest_score.desc().nullslast(),
+                    RefinedResult.quality_score.desc().nullslast()
+                )
+                .limit(50)  # 最多50篇
+                .all()
+            )
+
+            if not results:
+                logger.info(f"No results for scheduled digest, rule {rule.id}")
+                return
+
+            # 过滤：只保留满足任一条件的结果
+            filtered_results = [
+                r for r in results
+                if (r.quality_score is not None and r.quality_score >= min_quality)
+                or (r.interest_score is not None and r.interest_score >= min_interest)
+            ]
+
+            if not filtered_results:
+                logger.info(f"No qualified results for scheduled digest, rule {rule.id}")
+                return
+
+            # 构建消息
+            notifier = self._get_notifier(rule.channel)
+            if not notifier:
+                return
+
+            items = [self._build_message(r, rule, db) for r in filtered_results]
+
+            batch_msg = BatchNotificationMessage(
+                category_name=f"{rule.category.name if rule.category else '全部'} - 今日精选",
+                items=items,
+                total_count=len(items),
+            )
+
+            success = await notifier.send_batch(batch_msg)
+
+            # 记录日志
+            now = datetime.utcnow()
+            for result in filtered_results:
+                log = NotificationLog(
+                    rule_id=rule.id,
+                    channel_id=rule.channel_id,
+                    refined_result_id=result.id,
+                    status="success" if success else "failed",
+                    sent_at=now if success else None,
+                    created_at=now,
+                )
+                db.add(log)
+            db.commit()
+
+            if success:
+                logger.info(f"Scheduled digest sent for rule {rule.id}, {len(items)} items")
+            else:
+                logger.warning(f"Scheduled digest failed for rule {rule.id}")
+
+        except Exception as e:
+            logger.error(f"Failed to send scheduled digest for rule {rule.id}: {e}", exc_info=True)
 
     async def _flush_batch_job(self, rule_id: int, batch_id: str):
         """APScheduler 回调，创建新 session 执行 flush."""

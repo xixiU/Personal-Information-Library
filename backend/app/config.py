@@ -31,5 +31,8 @@ class Settings(BaseSettings):
     task_queue_size: int = 1000
     task_max_retries: int = 3
 
+    # Refiner
+    refine_max_concurrent: int = 5  # 批量精炼时的最大并发数
+
 
 settings = Settings()
