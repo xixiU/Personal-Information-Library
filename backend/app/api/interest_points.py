@@ -33,7 +33,16 @@ def _enrich_with_category(point: InterestPoint, db: Session) -> dict:
 
 @router.get("/stats")
 async def interest_point_stats(db: Session = Depends(get_db)):
-    """兴趣点统计（词云数据）."""
+    """兴趣点统计（词云数据）.
+
+    返回结构：{ total, active, items: [...] }
+    - total: 全部兴趣点数量（含禁用）
+    - active: 激活的兴趣点数量
+    - items: 激活的兴趣点数组（词云用）
+    """
+    # 总数（含禁用）
+    total = db.query(InterestPoint).count()
+
     points = (
         db.query(InterestPoint)
         .filter(InterestPoint.is_active == True)  # noqa: E712
@@ -71,7 +80,11 @@ async def interest_point_stats(db: Session = Depends(get_db)):
             "feedback_count": feedback_count,
         })
 
-    return result
+    return {
+        "total": total,
+        "active": len(result),
+        "items": result,
+    }
 
 
 @router.post("", response_model=InterestPointResponse, status_code=201)

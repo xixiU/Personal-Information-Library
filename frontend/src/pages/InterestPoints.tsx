@@ -375,18 +375,21 @@ function WordCloud({ stats, loading }: { stats: InterestPointStats | null; loadi
     return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
   }
 
-  if (!stats || stats.items.length === 0) {
+  // 防御：后端可能返回缺失 items 字段的结构，避免读 undefined.length 崩溃
+  const items = stats?.items ?? []
+  if (!stats || items.length === 0) {
     return <Empty description="暂无兴趣点数据" />
   }
 
-  const maxWeight = Math.max(...stats.items.map(i => i.weight))
+  // 加 fallback 值 1，避免空数组时 Math.max() 返回 -Infinity，也保证下方除法不为 0
+  const maxWeight = Math.max(...items.map(i => i.weight), 1)
   const minSize = 14
   const maxSize = 48
 
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 16, color: '#999', fontSize: 12 }}>
-        共 {stats.total} 个兴趣点，活跃 {stats.active} 个 |
+        共 {stats.total ?? items.length} 个兴趣点，活跃 {stats.active ?? 0} 个 |
         <Tag color="blue" style={{ marginLeft: 8 }}>手动</Tag>
         <Tag color="green">AI 发现</Tag>
       </div>
@@ -399,7 +402,7 @@ function WordCloud({ stats, loading }: { stats: InterestPointStats | null; loadi
         minHeight: 200,
         padding: 24,
       }}>
-        {stats.items.map((item, index) => {
+        {items.map((item, index) => {
           const fontSize = maxWeight > 0
             ? minSize + (item.weight / maxWeight) * (maxSize - minSize)
             : minSize
