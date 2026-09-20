@@ -12,6 +12,7 @@ class CrawlMode(str, Enum):
 
     SINGLE_PAGE = "single_page"
     FULL_SITE = "full_site"
+    RSS = "rss"  # RSS 订阅源模式
 
 
 class SourceStatus(str, Enum):
@@ -30,7 +31,8 @@ class Source(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     url = Column(String(500), nullable=False, unique=True, index=True)
-    crawl_mode = Column(String(20), nullable=False, default=CrawlMode.SINGLE_PAGE)
+    source_type = Column(String(20), nullable=True)  # 'single_page' | 'full_site' | 'rss'
+    crawl_mode = Column(String(20), nullable=False, default=CrawlMode.SINGLE_PAGE)  # 内部实现字段，保留兼容
     cron_expr = Column(String(100), nullable=True)  # Cron expression for scheduling
     plugin_id = Column(Integer, nullable=True)  # Foreign key to plugins table
     config = Column(JSON, nullable=True)  # Additional configuration
